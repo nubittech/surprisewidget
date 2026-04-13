@@ -1,0 +1,127 @@
+{
+  "theme": {
+    "name": "Playful Wonder (Moshi Kids Inspired)",
+    "archetype": "Archetype 6: Vibrant Play & Archetype 3: Pastel & Soft",
+    "mode": "light",
+    "colors": {
+      "primary": "#D8B4E2",
+      "primary_light": "#F3E8FF",
+      "primary_dark": "#9D4CDD",
+      "secondary": "#2DD4BF",
+      "secondary_dark": "#0D9488",
+      "accent_pink": "#F472B6",
+      "accent_yellow": "#FDE047",
+      "background_main": "#FAFAFA",
+      "background_card": "#FFFFFF",
+      "text_main": "#1F2937",
+      "text_muted": "#6B7280",
+      "border": "#E9D5FF",
+      "success": "#34D399",
+      "error": "#FB7185"
+    },
+    "typography": {
+      "fontFamily": {
+        "heading": "Fredoka",
+        "body": "Nunito"
+      },
+      "sizes": {
+        "h1": 36,
+        "h2": 28,
+        "h3": 22,
+        "body": 16,
+        "small": 14,
+        "tiny": 12
+      },
+      "spacing": {
+        "tracking": {
+          "heading": -0.5,
+          "body": 0
+        }
+      }
+    },
+    "spacing": {
+      "xs": 4,
+      "sm": 8,
+      "md": 16,
+      "lg": 24,
+      "xl": 32,
+      "xxl": 48
+    },
+    "radii": {
+      "sm": 12,
+      "md": 16,
+      "lg": 24,
+      "xl": 32,
+      "pill": 999
+    },
+    "shadows": {
+      "sm": {
+        "shadowColor": "#9D4CDD",
+        "shadowOffset": { "width": 0, "height": 2 },
+        "shadowOpacity": 0.1,
+        "shadowRadius": 4,
+        "elevation": 2
+      },
+      "md": {
+        "shadowColor": "#9D4CDD",
+        "shadowOffset": { "width": 0, "height": 4 },
+        "shadowOpacity": 0.15,
+        "shadowRadius": 8,
+        "elevation": 4
+      },
+      "lg": {
+        "shadowColor": "#9D4CDD",
+        "shadowOffset": { "width": 0, "height": 8 },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 16,
+        "elevation": 8
+      }
+    }
+  },
+  "layout_strategies": {
+    "screen": "Use a generous padding of 24px on horizontal edges. Avoid elements touching the screen edges unless it's a full-bleed image or banner.",
+    "buttons": "Large touch targets (min-height 56px), pill-shaped (borderRadius 999), bouncy scale-down animation on press. Add a 3px bottom border in a darker shade for a 3D tactile feel.",
+    "cards": "White or pastel backgrounds, huge border radii (24px or 32px), thick invisible borders or soft borders, heavy soft shadow.",
+    "canvas": "The card canvas should maintain an aspect ratio of roughly 3:4 (or widget size). Must have absolute positioned elements (text, stickers) wrapped in PanGestureHandler/RotationGestureHandler for drag, drop, resize, rotate."
+  },
+  "components": {
+    "Button": "TouchableOpacity with ActiveOpacity 0.8. Give it a solid background (e.g. Teal or Pink), a 3px bottom border (darker shade of bg color) for a '3D push' effect.",
+    "Card": "View with rounded corners (24px), background card color, padding 20px, light purple shadow.",
+    "TextInput": "Height 56px, rounded-2xl (16px), background-color #F3E8FF (very light purple), paddingHorizontal 16px, color #1F2937, font-family Nunito, subtle border width 2px borderColor transparent, onFocus borderColor #D8B4E2.",
+    "Header": "Large titles with Fredoka font, left aligned, generous top padding to account for safe area."
+  },
+  "image_urls": {
+    "lavender_aqua_bg": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/30c56af7-afbb-4438-87da-ce481697ed74/images/a7c2abf572eb1b4646453d4b3e9823af27a4f02406f2b858827ff2a97dbcc4b6.png",
+      "description": "Soft pastel lavender and aqua gradient background. Use as a default background preset for the card canvas or onboarding."
+    },
+    "pink_yellow_bg": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/30c56af7-afbb-4438-87da-ce481697ed74/images/7b403bbb709b36328ccdcbfd1cef2b63305403ac43e33c0825da1ca59cd9487e.png",
+      "description": "Soft pink and sunny yellow gradient background. Use as a secondary background preset for the card canvas."
+    },
+    "star_sticker": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/30c56af7-afbb-4438-87da-ce481697ed74/images/c317814c5c756b2587a794616a53da8794ab79b7f1ccaccddc602f4ddc8b5a1e.png",
+      "description": "3D claymorphism star sticker for the card creator canvas."
+    },
+    "heart_sticker": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/30c56af7-afbb-4438-87da-ce481697ed74/images/48e49c1002e834cb1a2fc1e51ad60dd64f5fcf27c0a64e4c3adc40ae83670b7f.png",
+      "description": "3D claymorphism heart sticker for the card creator canvas."
+    }
+  },
+  "animations": {
+    "onboarding": "Use standard React Native Animated or Reanimated for smooth page transitions. Bouncing effects on character or image entry.",
+    "interactions": "Use `react-native-reanimated` or standard `Animated` to scale buttons down by 0.95 on press-in, and back to 1 on press-out.",
+    "card_receive": "When a new card arrives, have a bouncy 'pop up' animation on the Home screen."
+  },
+  "instructions_to_main_agent": [
+    "This is a React Native Expo app. DO NOT USE HTML, CSS, TAILWIND OR CLASSNAME. Use StyleSheet.create().",
+    "Target .js files only (not .tsx).",
+    "Use standard React Native primitives (View, Text, TouchableOpacity, TextInput, Image, ScrollView, SafeAreaView).",
+    "Use @expo-google-fonts/fredoka and @expo-google-fonts/nunito for typography. Load them via expo-font at the root of the app.",
+    "Use expo-router for navigation.",
+    "Use react-native-gesture-handler and react-native-reanimated for the Card Canvas (drag, drop, resize, rotate).",
+    "CRITICAL: All interactive and key informational elements MUST include a `data-testid` attribute for testing (e.g. data-testid=\"login-button\").",
+    "Implement the pairing system via simple code sharing (invite code UI) since dynamic links require external setup.",
+    "Card canvas needs absolute positioning. Wrap stickers/text in gesture handlers so users can move/scale/rotate them freely."
+  ]
+}

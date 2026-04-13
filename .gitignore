@@ -1,0 +1,55 @@
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Python / Backend
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.env
+backend/venv/
+backend/.venv/
+*.p8
+
+# APNs key — never commit
+AuthKey_*.p8
+
+# Frontend (React Native — not part of this project)
+frontend/
+ios-widget/
+
+# Misc cache / generated
+.emergent/
+memory/
+test_reports/
+.gitconfig
+*.log
+.env
+.env.local

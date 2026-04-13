@@ -1,0 +1,333 @@
+import SwiftUI
+
+struct AuthView: View {
+    @Environment(AuthManager.self) private var auth
+    
+    @State private var isLogin = true
+    @State private var email = ""
+    @State private var password = ""
+    @State private var name = ""
+    @State private var loading = false
+    @State private var errorMsg = ""
+    
+    // Neo-Brutalist Colors
+    let bgColor = Color(hex: "#F8F5FF") // Soft light purple background
+    let darkStroke = Color(hex: "#2D1E5F") // Dark purple stroke
+    let primaryPurple = Color(hex: "#9D6BFF") // Main vibrant purple
+    let inputBgColor = Color(hex: "#F3E8FF") // Soft pastel purple for inputs
+    let textDark = Color(hex: "#2D1E5F")
+    
+    var body: some View {
+        ZStack {
+            // Background
+            bgColor.ignoresSafeArea()
+            DottedBackground(dotColor: Color(hex: "#E9D5FF"))
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    
+                    Spacer().frame(height: 40)
+                    
+                    // Logo
+                    SurpriseWidgetLogo()
+                        .padding(.bottom, 20)
+                    
+                    // Headers
+                    Text("Hoş Geldin!")
+                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .foregroundStyle(textDark)
+                    
+                    Text("Yeni sürprizlere hazır mısın?")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(textDark.opacity(0.8))
+                        .padding(.top, 4)
+                        .padding(.bottom, 24)
+                    
+                    // Main Card
+                    VStack(spacing: 20) {
+                        
+                        if !isLogin {
+                            BrutalistTextField(
+                                label: "Adın Soyadın",
+                                icon: "person.fill",
+                                placeholder: "İsim Soyisim",
+                                text: $name,
+                                strokeColor: darkStroke,
+                                inputBg: inputBgColor
+                            )
+                        }
+                        
+                        BrutalistTextField(
+                            label: "E-posta",
+                            icon: "envelope.fill",
+                            placeholder: "eposta@adresin.com",
+                            text: $email,
+                            keyboardType: .emailAddress,
+                            strokeColor: darkStroke,
+                            inputBg: inputBgColor
+                        )
+                        
+                        BrutalistTextField(
+                            label: "Şifre",
+                            icon: "lock.fill",
+                            placeholder: "••••••••",
+                            text: $password,
+                            isSecure: true,
+                            strokeColor: darkStroke,
+                            inputBg: inputBgColor
+                        )
+                        
+                        if !errorMsg.isEmpty {
+                            Text(errorMsg)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color(hex: "#DC2626"))
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        // Submit Button
+                        Button(action: handleSubmit) {
+                            HStack {
+                                if loading {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Text(isLogin ? "Girdi Yap!" : "Hadi Başlayalım!")
+                                }
+                            }
+                            .font(.system(size: 20, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(primaryPurple) // Main vibrant purple
+                            .clipShape(Capsule())
+                            // Button brutualist styling
+                            .overlay(Capsule().stroke(darkStroke, lineWidth: 4))
+                            .shadow(color: darkStroke, radius: 0, x: 0, y: 6)
+                        }
+                        .disabled(loading)
+                        .padding(.top, 10)
+                        
+                    }
+                    .padding(32)
+                    .background(Color.white)
+                    // Card brutualist styling
+                    .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(darkStroke, lineWidth: 5))
+                    .shadow(color: darkStroke, radius: 0, x: 8, y: 10)
+                    .padding(.horizontal, 24)
+                    
+                    Spacer(minLength: 40)
+                    
+                    // Toggle Text (Bottom)
+                    Button(action: {
+                        withAnimation {
+                            isLogin.toggle()
+                            errorMsg = ""
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(isLogin ? "Hesabın yok mu?" : "Zaten hesabın var mı?")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(textDark)
+                            
+                            Text(isLogin ? "Kayıt Ol!" : "Giriş Yap!")
+                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .foregroundColor(primaryPurple) // Purple impact color
+                        }
+                    }
+                    .padding(.bottom, 30)
+                }
+            }
+        }
+    }
+    
+    func handleSubmit() {
+        errorMsg = ""
+        guard !email.isEmpty, !password.isEmpty else {
+            errorMsg = "Lütfen tüm alanları doldur."
+            return
+        }
+        if !isLogin && name.isEmpty {
+            errorMsg = "Lütfen ismini gir."
+            return
+        }
+        loading = true
+        Task {
+            do {
+                if isLogin {
+                    try await auth.login(email: email, password: password)
+                } else {
+                    try await auth.register(email: email, password: password, name: name)
+                }
+            } catch {
+                errorMsg = error.localizedDescription
+            }
+            loading = false
+        }
+    }
+}
+
+// MARK: - Brutalist TextField Component
+struct BrutalistTextField: View {
+    let label: String
+    let icon: String
+    let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+    var isSecure = false
+    
+    let strokeColor: Color
+    let inputBg: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Label
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .black))
+                Text(label)
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+            }
+            .foregroundColor(strokeColor)
+            .padding(.leading, 8)
+            
+            // Input Field
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: $text)
+                        .autocorrectionDisabled()
+                } else {
+                    TextField(placeholder, text: $text)
+                        .keyboardType(keyboardType)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(keyboardType == .emailAddress ? .never : .words)
+                }
+            }
+            .font(.system(size: 16, weight: .bold))
+            .foregroundColor(strokeColor)
+            .padding(.horizontal, 20)
+            .frame(height: 56)
+            .background(inputBg)
+            // Note: In the image fields don't have thick borders, just the pastel bg
+            .clipShape(Capsule())
+        }
+    }
+}
+
+// MARK: - Surprise Widget Logo
+struct SurpriseWidgetLogo: View {
+    private let dark = Color(hex: "#2D1E5F")
+    private let purple = Color(hex: "#9D6BFF")
+    private let yellow = Color(hex: "#FADB5F")
+    private let white = Color.white
+
+    var body: some View {
+        VStack(spacing: 14) {
+            // ── Icon ────────────────────────────────────────────────────
+            ZStack {
+                // Widget shape
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(purple)
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30, style: .continuous)
+                            .stroke(dark, lineWidth: 4)
+                    )
+                    .shadow(color: dark, radius: 0, x: 6, y: 6)
+
+                // Gift + sparkles (Canvas)
+                Canvas { ctx, size in
+                    let cx = size.width / 2
+                    let cy = size.height / 2 + 4
+
+                    // Gift body
+                    let body = Path(roundedRect: CGRect(x: cx - 24, y: cy - 4, width: 48, height: 30), cornerRadius: 5)
+                    ctx.fill(body, with: .color(white))
+
+                    // Gift lid
+                    let lid = Path(roundedRect: CGRect(x: cx - 27, y: cy - 16, width: 54, height: 14), cornerRadius: 5)
+                    ctx.fill(lid, with: .color(yellow))
+
+                    // Ribbon vertical
+                    ctx.fill(Path(CGRect(x: cx - 4, y: cy - 16, width: 8, height: 44)), with: .color(yellow.opacity(0.7)))
+
+                    // Bow left loop
+                    var bowL = Path()
+                    bowL.move(to: CGPoint(x: cx, y: cy - 16))
+                    bowL.addCurve(to: CGPoint(x: cx - 20, y: cy - 16),
+                                  control1: CGPoint(x: cx - 6,  y: cy - 34),
+                                  control2: CGPoint(x: cx - 20, y: cy - 30))
+                    bowL.addCurve(to: CGPoint(x: cx, y: cy - 16),
+                                  control1: CGPoint(x: cx - 16, y: cy - 6),
+                                  control2: CGPoint(x: cx - 4,  y: cy - 12))
+                    ctx.fill(bowL, with: .color(yellow))
+
+                    // Bow right loop
+                    var bowR = Path()
+                    bowR.move(to: CGPoint(x: cx, y: cy - 16))
+                    bowR.addCurve(to: CGPoint(x: cx + 20, y: cy - 16),
+                                  control1: CGPoint(x: cx + 6,  y: cy - 34),
+                                  control2: CGPoint(x: cx + 20, y: cy - 30))
+                    bowR.addCurve(to: CGPoint(x: cx, y: cy - 16),
+                                  control1: CGPoint(x: cx + 16, y: cy - 6),
+                                  control2: CGPoint(x: cx + 4,  y: cy - 12))
+                    ctx.fill(bowR, with: .color(yellow))
+
+                    // 4-point sparkle helper
+                    func sparkle(x: CGFloat, y: CGFloat, r: CGFloat) -> Path {
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: y - r))
+                        p.addLine(to: CGPoint(x: x + r * 0.28, y: y - r * 0.28))
+                        p.addLine(to: CGPoint(x: x + r, y: y))
+                        p.addLine(to: CGPoint(x: x + r * 0.28, y: y + r * 0.28))
+                        p.addLine(to: CGPoint(x: x, y: y + r))
+                        p.addLine(to: CGPoint(x: x - r * 0.28, y: y + r * 0.28))
+                        p.addLine(to: CGPoint(x: x - r, y: y))
+                        p.addLine(to: CGPoint(x: x - r * 0.28, y: y - r * 0.28))
+                        p.closeSubpath()
+                        return p
+                    }
+
+                    ctx.fill(sparkle(x: cx - 36, y: cy - 28, r: 7), with: .color(white.opacity(0.95)))
+                    ctx.fill(sparkle(x: cx + 38, y: cy - 22, r: 5), with: .color(white.opacity(0.85)))
+                    ctx.fill(sparkle(x: cx + 32, y: cy + 24, r: 6), with: .color(white.opacity(0.9)))
+                    ctx.fill(sparkle(x: cx - 32, y: cy + 26, r: 4), with: .color(white.opacity(0.8)))
+                }
+                .frame(width: 120, height: 120)
+            }
+
+            // ── Wordmark ─────────────────────────────────────────────────
+            VStack(spacing: 2) {
+                HStack(spacing: 0) {
+                    Text("Surprise")
+                        .font(.system(size: 30, weight: .black, design: .rounded))
+                        .foregroundStyle(dark)
+                    Text(" Widget")
+                        .font(.system(size: 30, weight: .black, design: .rounded))
+                        .foregroundStyle(purple)
+                }
+                Text("Sürprizini paylaş ✨")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(dark.opacity(0.5))
+            }
+        }
+    }
+}
+
+// MARK: - Background Dotted Pattern
+struct DottedBackground: View {
+    let dotColor: Color
+    
+    var body: some View {
+        Canvas { context, size in
+            let spacing: CGFloat = 36
+            let dotSize: CGFloat = 4
+            
+            for x in stride(from: 0, through: size.width, by: spacing) {
+                for y in stride(from: 0, through: size.height, by: spacing) {
+                    let rect = CGRect(x: x, y: y, width: dotSize, height: dotSize)
+                    context.fill(Path(ellipseIn: rect), with: .color(dotColor))
+                }
+            }
+        }
+    }
+}
