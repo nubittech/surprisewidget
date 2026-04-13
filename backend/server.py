@@ -237,6 +237,43 @@ async def login(req: LoginRequest):
         access_token=token
     )
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    # Always return success to prevent email enumeration
+    if user:
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        await db.password_resets.insert_one({
+            "user_id": user["_id"],
+            "token": reset_token,
+            "expires_at": expires_at,
+            "used": False
+        })
+        # TODO: Send email with reset link when email service is configured
+        logger.info(f"[Auth] Password reset token for {email}: {reset_token}")
+    return {"message": "Sıfırlama bağlantısı e-posta adresinize gönderildi."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    record = await db.password_resets.find_one({"token": req.token, "used": False})
+    if not record:
+        raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş token")
+    if record["expires_at"] < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token süresi dolmuş")
+    new_hash = hash_password(req.new_password)
+    await db.users.update_one({"_id": record["user_id"]}, {"$set": {"password_hash": new_hash}})
+    await db.password_resets.update_one({"_id": record["_id"]}, {"$set": {"used": True}})
+    return {"message": "Şifreniz başarıyla sıfırlandı."}
+
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: dict = Depends(get_current_user)):
     return UserResponse(

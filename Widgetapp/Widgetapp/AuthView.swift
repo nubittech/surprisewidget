@@ -9,6 +9,7 @@ struct AuthView: View {
     @State private var name = ""
     @State private var loading = false
     @State private var errorMsg = ""
+    @State private var showForgotPassword = false
     
     // Neo-Brutalist Colors
     let bgColor = Color(hex: "#F8F5FF") // Soft light purple background
@@ -117,6 +118,16 @@ struct AuthView: View {
                     
                     Spacer(minLength: 40)
                     
+                    // Forgot Password (only on login screen)
+                    if isLogin {
+                        Button(action: { showForgotPassword = true }) {
+                            Text("Şifremi unuttum")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(primaryPurple.opacity(0.8))
+                        }
+                        .padding(.top, 4)
+                    }
+
                     // Toggle Text (Bottom)
                     Button(action: {
                         withAnimation {
@@ -128,18 +139,21 @@ struct AuthView: View {
                             Text(isLogin ? "Hesabın yok mu?" : "Zaten hesabın var mı?")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(textDark)
-                            
+
                             Text(isLogin ? "Kayıt Ol!" : "Giriş Yap!")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
-                                .foregroundColor(primaryPurple) // Purple impact color
+                                .foregroundColor(primaryPurple)
                         }
                     }
                     .padding(.bottom, 30)
                 }
             }
         }
+        .sheet(isPresented: $showForgotPassword) {
+            ForgotPasswordView()
+        }
     }
-    
+
     func handleSubmit() {
         errorMsg = ""
         guard !email.isEmpty, !password.isEmpty else {
@@ -209,6 +223,131 @@ struct BrutalistTextField: View {
             .background(inputBg)
             // Note: In the image fields don't have thick borders, just the pastel bg
             .clipShape(Capsule())
+        }
+    }
+}
+
+// MARK: - Forgot Password View
+struct ForgotPasswordView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var loading = false
+    @State private var sent = false
+    @State private var errorMsg = ""
+
+    private let dark = Color(hex: "#2D1E5F")
+    private let purple = Color(hex: "#9D6BFF")
+    private let inputBg = Color(hex: "#F3E8FF")
+    private let bg = Color(hex: "#F8F5FF")
+
+    var body: some View {
+        ZStack {
+            bg.ignoresSafeArea()
+            DottedBackground(dotColor: Color(hex: "#E9D5FF"))
+
+            VStack(spacing: 28) {
+                // Header
+                VStack(spacing: 8) {
+                    Text("🔑")
+                        .font(.system(size: 60))
+                    Text("Şifre Sıfırla")
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .foregroundStyle(dark)
+                    Text("E-posta adresini gir, sıfırlama\nbağlantısı gönderelim.")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(dark.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 60)
+
+                if sent {
+                    // Success state
+                    VStack(spacing: 16) {
+                        Text("✅")
+                            .font(.system(size: 48))
+                        Text("E-posta gönderildi!")
+                            .font(.system(size: 20, weight: .black, design: .rounded))
+                            .foregroundStyle(dark)
+                        Text("Gelen kutunu kontrol et ve\nbağlantıya tıkla.")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(dark.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                        Button("Tamam") { dismiss() }
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(purple)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(dark, lineWidth: 3))
+                            .shadow(color: dark, radius: 0, x: 0, y: 5)
+                            .padding(.top, 8)
+                    }
+                    .padding(.horizontal, 32)
+                } else {
+                    // Input state
+                    VStack(spacing: 16) {
+                        BrutalistTextField(
+                            label: "E-posta",
+                            icon: "envelope.fill",
+                            placeholder: "eposta@adresin.com",
+                            text: $email,
+                            keyboardType: .emailAddress,
+                            strokeColor: dark,
+                            inputBg: inputBg
+                        )
+
+                        if !errorMsg.isEmpty {
+                            Text(errorMsg)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color(hex: "#DC2626"))
+                                .multilineTextAlignment(.center)
+                        }
+
+                        Button(action: handleReset) {
+                            HStack {
+                                if loading { ProgressView().tint(.white) }
+                                else { Text("Sıfırlama Bağlantısı Gönder") }
+                            }
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(purple)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(dark, lineWidth: 3))
+                            .shadow(color: dark, radius: 0, x: 0, y: 5)
+                        }
+                        .disabled(loading)
+                    }
+                    .padding(.horizontal, 32)
+                }
+
+                Spacer()
+
+                Button("Geri Dön") { dismiss() }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(dark.opacity(0.5))
+                    .padding(.bottom, 40)
+            }
+        }
+    }
+
+    func handleReset() {
+        guard !email.isEmpty else { errorMsg = "E-posta adresini gir."; return }
+        loading = true
+        errorMsg = ""
+        Task {
+            do {
+                struct Body: Encodable { let email: String }
+                struct Resp: Decodable { let message: String }
+                let _: Resp = try await APIService.shared.post(
+                    "/auth/forgot-password", body: Body(email: email))
+                sent = true
+            } catch {
+                errorMsg = error.localizedDescription
+            }
+            loading = false
         }
     }
 }

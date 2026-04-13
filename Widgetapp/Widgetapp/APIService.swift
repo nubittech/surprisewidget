@@ -3,15 +3,17 @@ import Foundation
 enum APIError: LocalizedError {
     case invalidURL
     case serverError(String)
-    case unauthorized
+    case unauthorized           // token expired → force logout
+    case invalidCredentials     // wrong email/password → show on login
     case unknown(Int)
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:           return "Geçersiz URL"
-        case .serverError(let m):   return m
-        case .unauthorized:         return "Oturum süresi doldu, lütfen tekrar giriş yapın"
-        case .unknown(let code):    return "Beklenmeyen hata (\(code))"
+        case .invalidURL:               return "Geçersiz URL"
+        case .serverError(let m):       return m
+        case .unauthorized:             return "Oturum süresi doldu, lütfen tekrar giriş yapın"
+        case .invalidCredentials:       return "E-posta veya şifre hatalı"
+        case .unknown(let code):        return "Beklenmeyen hata (\(code))"
         }
     }
 }
@@ -85,7 +87,15 @@ class APIService {
 
         guard let http = response as? HTTPURLResponse else { throw APIError.unknown(0) }
 
-        if http.statusCode == 401 { throw APIError.unauthorized }
+        if http.statusCode == 401 {
+            // Check if it's a credential error (login/register) or expired token
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = json["detail"] as? String,
+               detail.contains("Geçersiz e-posta") || detail.contains("şifre") {
+                throw APIError.invalidCredentials
+            }
+            throw APIError.unauthorized
+        }
 
         guard (200...299).contains(http.statusCode) else {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
