@@ -512,8 +512,9 @@ async def send_push_notification(user_id: str, payload: dict):
     Requires environment variables:
       APNS_KEY_ID   — Key ID from Apple Developer
       APNS_TEAM_ID  — Team ID from Apple Developer
-      APNS_KEY_PATH — Path to .p8 private key file
-      APNS_BUNDLE_ID — App bundle identifier (e.g. com.nubittech.blurp.Widgetapp)
+      APNS_KEY_PATH — Path to .p8 private key file (local dev)
+      APNS_KEY_CONTENT — .p8 key content as env variable (production)
+      APNS_BUNDLE_ID — App bundle identifier
       APNS_USE_SANDBOX — "true" for development, "false" for production
     """
     import httpx
@@ -522,17 +523,21 @@ async def send_push_notification(user_id: str, payload: dict):
     key_id = os.environ.get("APNS_KEY_ID")
     team_id = os.environ.get("APNS_TEAM_ID")
     key_path = os.environ.get("APNS_KEY_PATH")
-    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.nubittech.blurp.Widgetapp")
+    key_content = os.environ.get("APNS_KEY_CONTENT")
+    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.nubittech.surprisecard")
     use_sandbox = os.environ.get("APNS_USE_SANDBOX", "true").lower() == "true"
 
-    if not all([key_id, team_id, key_path]):
+    if not all([key_id, team_id]) or not (key_path or key_content):
         logger.warning("[Push] APNs not configured — skipping push notification")
         return
 
     # Build JWT for APNs authentication
     try:
-        with open(key_path, "r") as f:
-            key_data = f.read()
+        if key_content:
+            key_data = key_content
+        else:
+            with open(key_path, "r") as f:
+                key_data = f.read()
 
         token_payload = {
             "iss": team_id,
