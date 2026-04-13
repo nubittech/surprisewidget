@@ -18,13 +18,8 @@ enum APIError: LocalizedError {
 
 class APIService {
     static let shared = APIService()
-    // Backend URL - update this if your IP changes
-    // Simulator: 127.0.0.1 | Physical device: Mac's local IP (e.g. 172.20.10.3)
-    #if targetEnvironment(simulator)
-    static let baseURL = "http://127.0.0.1:8000/api"
-    #else
-    static let baseURL = "http://172.20.10.3:8000/api"
-    #endif
+    // Production backend on Railway
+    static let baseURL = "https://surprisewidget-production.up.railway.app/api"
 
     private init() {
         // Always keep the widget's copy of the base URL up-to-date and
