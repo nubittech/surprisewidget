@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gizlilik Politikası – Surprise Widget</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #F8F5FF;
+      color: #2D1E5F;
+      line-height: 1.7;
+      padding: 40px 20px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header .logo { font-size: 48px; }
+    header h1 {
+      font-size: 28px;
+      font-weight: 900;
+      margin-top: 12px;
+    }
+    header h1 span { color: #9D6BFF; }
+    header p { color: #8A7A9A; margin-top: 6px; font-size: 14px; }
+    h2 {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 32px 0 10px;
+      padding-left: 12px;
+      border-left: 4px solid #9D6BFF;
+    }
+    p { margin-bottom: 12px; color: #3D2E6F; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; color: #3D2E6F; }
+    a { color: #9D6BFF; text-decoration: none; font-weight: 600; }
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-size: 13px;
+      color: #8A7A9A;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      border: 3px solid #2D1E5F;
+      box-shadow: 6px 6px 0 #2D1E5F;
+      padding: 32px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🎁</div>
+    <h1>Surprise <span>Widget</span></h1>
+    <p>Gizlilik Politikası · Son güncelleme: Nisan 2026</p>
+  </header>
+
+  <div class="card">
+    <h2>1. Giriş</h2>
+    <p>Surprise Widget ("uygulama", "biz") olarak gizliliğinizi önemsiyoruz. Bu politika, uygulamayı kullanırken hangi verileri topladığımızı ve nasıl kullandığımızı açıklar.</p>
+
+    <h2>2. Topladığımız Veriler</h2>
+    <ul>
+      <li><strong>Hesap bilgileri:</strong> Kayıt sırasında sağladığınız ad ve e-posta adresi.</li>
+      <li><strong>Kart içerikleri:</strong> Oluşturduğunuz kartlardaki metin, sticker ve arka plan tercihleri.</li>
+      <li><strong>Cihaz token'ı:</strong> Widget güncellemeleri için push bildirim token'ı (APNs).</li>
+    </ul>
+
+    <h2>3. Verileri Nasıl Kullanıyoruz</h2>
+    <ul>
+      <li>Hesabınızı oluşturmak ve doğrulamak.</li>
+      <li>Kartlarınızı eşleştiğiniz kişiye iletmek.</li>
+      <li>Widget'ınızı anlık olarak güncellemek (push bildirimi).</li>
+    </ul>
+
+    <h2>4. Veri Paylaşımı</h2>
+    <p>Verilerinizi üçüncü taraflarla satmıyoruz veya kiralamıyoruz. Yalnızca aşağıdaki altyapı sağlayıcılarıyla çalışıyoruz:</p>
+    <ul>
+      <li><strong>MongoDB Atlas</strong> – Veri depolama (AB sunucuları)</li>
+      <li><strong>Railway</strong> – Uygulama sunucusu</li>
+      <li><strong>Apple APNs</strong> – Push bildirimleri</li>
+    </ul>
+
+    <h2>5. Veri Güvenliği</h2>
+    <p>Şifreleriniz bcrypt ile hashlenerek saklanır. Tüm iletişim HTTPS üzerinden şifrelenir.</p>
+
+    <h2>6. Veri Saklama</h2>
+    <p>Hesabınızı sildiğinizde tüm kişisel verileriniz 30 gün içinde kalıcı olarak silinir.</p>
+
+    <h2>7. Çocukların Gizliliği</h2>
+    <p>Uygulama 13 yaşından küçük çocuklara yönelik değildir ve bu yaş grubundan bilerek veri toplamıyoruz.</p>
+
+    <h2>8. Haklarınız</h2>
+    <ul>
+      <li>Verilerinize erişim talep edebilirsiniz.</li>
+      <li>Verilerinizin düzeltilmesini isteyebilirsiniz.</li>
+      <li>Hesabınızı ve tüm verilerinizi silebilirsiniz (uygulama içi Profil → Hesabı Sil).</li>
+    </ul>
+
+    <h2>9. İletişim</h2>
+    <p>Gizlilikle ilgili sorularınız için: <a href="mailto:destek@surprisewidget.app">destek@surprisewidget.app</a></p>
+  </div>
+
+  <footer>
+    <p>© 2026 Surprise Widget · Nubit Tech</p>
+    <p style="margin-top:8px"><a href="terms.html">Kullanım Koşulları</a></p>
+  </footer>
+</body>
+</html>
