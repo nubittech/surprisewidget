@@ -71,6 +71,10 @@ class APIService {
         try await request(path, method: "POST", body: nil)
     }
 
+    func delete<T: Decodable>(_ path: String) async throws -> T {
+        try await request(path, method: "DELETE", body: nil)
+    }
+
     // MARK: - Core
 
     private func request<T: Decodable>(_ path: String, method: String, body: Data?) async throws -> T {
