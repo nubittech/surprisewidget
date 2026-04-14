@@ -27,11 +27,21 @@ struct AuthView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
-                    Spacer().frame(height: 40)
+                    Spacer().frame(height: 32)
 
-                    // Logo with "HI THERE!" badge
+                    // "Ready for a" above logo
+                    Text("Ready for a")
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundStyle(textDark)
+                        .padding(.bottom, 8)
+
+                    // Logo image with "HI THERE!" badge
                     ZStack(alignment: .topTrailing) {
-                        SurpriseWidgetLogo()
+                        Image("logo_text")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 260)
+
                         Text("HI THERE!")
                             .font(.system(size: 11, weight: .black, design: .rounded))
                             .foregroundColor(darkStroke)
@@ -41,20 +51,9 @@ struct AuthView: View {
                             .clipShape(Capsule())
                             .overlay(Capsule().stroke(darkStroke, lineWidth: 1.5))
                             .rotationEffect(.degrees(8))
-                            .offset(x: 12, y: -8)
+                            .offset(x: 16, y: -10)
                     }
-                    .padding(.bottom, 16)
-
-                    // Header
-                    VStack(spacing: 0) {
-                        Text("Ready for a")
-                            .font(.system(size: 36, weight: .heavy, design: .rounded))
-                            .foregroundStyle(textDark)
-                        Text("Surprise?")
-                            .font(.system(size: 36, weight: .heavy, design: .rounded))
-                            .foregroundStyle(primaryPurple)
-                    }
-                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 8)
 
                     Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
