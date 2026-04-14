@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct AuthView: View {
     @Environment(AuthManager.self) private var auth
@@ -118,6 +119,32 @@ struct AuthView: View {
                     
                     Spacer(minLength: 40)
                     
+                    // Apple Sign In
+                    VStack(spacing: 12) {
+                        HStack {
+                            Rectangle().frame(height: 1).foregroundColor(darkStroke.opacity(0.15))
+                            Text("VEYA").font(.system(size: 11, weight: .black)).foregroundColor(darkStroke.opacity(0.4))
+                            Rectangle().frame(height: 1).foregroundColor(darkStroke.opacity(0.15))
+                        }
+                        .padding(.horizontal, 24)
+
+                        SignInWithAppleButton(
+                            onRequest: { request in
+                                request.requestedScopes = [.fullName, .email]
+                            },
+                            onCompletion: { result in
+                                handleAppleSignIn(result: result)
+                            }
+                        )
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 56)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(darkStroke, lineWidth: 3))
+                        .shadow(color: darkStroke, radius: 0, x: 0, y: 5)
+                        .padding(.horizontal, 24)
+                    }
+                    .padding(.top, 8)
+
                     // Forgot Password (only on login screen)
                     if isLogin {
                         Button(action: { showForgotPassword = true }) {
@@ -151,6 +178,28 @@ struct AuthView: View {
         }
         .sheet(isPresented: $showForgotPassword) {
             ForgotPasswordView()
+        }
+    }
+
+    func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+            loading = true
+            errorMsg = ""
+            Task {
+                do {
+                    try await auth.loginWithApple(credential: credential)
+                } catch {
+                    errorMsg = error.localizedDescription
+                }
+                loading = false
+            }
+        case .failure(let error):
+            // User cancelled — don't show error
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMsg = error.localizedDescription
+            }
         }
     }
 

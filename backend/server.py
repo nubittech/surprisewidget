@@ -8,8 +8,10 @@ import os
 import logging
 import bcrypt
 import jwt
+from jwt.algorithms import RSAAlgorithm
 import secrets
 import string
+import httpx
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
@@ -237,12 +239,88 @@ async def login(req: LoginRequest):
         access_token=token
     )
 
+class AppleSignInRequest(BaseModel):
+    identity_token: str
+    full_name: Optional[str] = None
+    email: Optional[str] = None   # only sent on first sign-in by Apple
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+async def verify_apple_identity_token(identity_token: str) -> dict:
+    """Verify Apple's identity token against Apple's public keys."""
+    bundle_id = os.environ.get("APNS_BUNDLE_ID", "com.nubittech.surprisecard")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get("https://appleid.apple.com/auth/keys", timeout=10)
+        resp.raise_for_status()
+        apple_keys = resp.json()["keys"]
+
+    header = jwt.get_unverified_header(identity_token)
+    kid = header.get("kid")
+    apple_key_data = next((k for k in apple_keys if k["kid"] == kid), None)
+    if not apple_key_data:
+        raise HTTPException(status_code=401, detail="Apple public key bulunamadı")
+
+    public_key = RSAAlgorithm.from_jwk(apple_key_data)
+    try:
+        payload = jwt.decode(
+            identity_token,
+            public_key,
+            algorithms=["RS256"],
+            audience=bundle_id,
+            issuer="https://appleid.apple.com"
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Apple token süresi dolmuş")
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail=f"Geçersiz Apple token: {e}")
+    return payload
+
+@api_router.post("/auth/apple", response_model=TokenResponse)
+async def apple_sign_in(req: AppleSignInRequest):
+    payload = await verify_apple_identity_token(req.identity_token)
+    apple_sub = payload["sub"]
+    # Email is only provided by Apple on the first sign-in
+    email = payload.get("email") or req.email
+
+    # Try to find user by apple_id
+    user = await db.users.find_one({"apple_id": apple_sub})
+
+    if not user and email:
+        # If not found by apple_id, check if email is already registered
+        user = await db.users.find_one({"email": email.lower()})
+        if user:
+            # Link this Apple ID to the existing account
+            await db.users.update_one({"_id": user["_id"]}, {"$set": {"apple_id": apple_sub}})
+            user["apple_id"] = apple_sub
+
+    if not user:
+        # Create a new user
+        name = req.full_name or (email.split("@")[0] if email else "Apple Kullanıcısı")
+        fallback_email = email.lower() if email else f"{apple_sub}@privaterelay.appleid.com"
+        user_doc = {
+            "email": fallback_email,
+            "apple_id": apple_sub,
+            "password_hash": None,
+            "name": name,
+            "pair_ids": [],
+            "created_at": datetime.now(timezone.utc)
+        }
+        result = await db.users.insert_one(user_doc)
+        user = await db.users.find_one({"_id": result.inserted_id})
+
+    user_id = str(user["_id"])
+    user_email = user.get("email", "")
+    pair_ids = [str(p) for p in user.get("pair_ids", []) if p]
+    token = create_access_token(user_id, user_email)
+    return TokenResponse(
+        user=UserResponse(id=user_id, email=user_email, name=user.get("name", ""), pair_ids=pair_ids),
+        access_token=token
+    )
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest):
@@ -522,6 +600,50 @@ async def get_sent_cards(user: dict = Depends(get_current_user)):
             "created_at": c["created_at"].isoformat() if isinstance(c["created_at"], datetime) else c["created_at"]
         } for c in cards]
     }
+
+
+# --- Account Management ---
+
+@api_router.delete("/auth/account")
+async def delete_account(user: dict = Depends(get_current_user)):
+    """Permanently delete account and all associated data."""
+    from bson import ObjectId as BsonObjectId
+    user_id = user["id"]
+
+    # Delete all cards sent by user
+    await db.cards.delete_many({"sender_id": user_id})
+
+    # Leave all pairs — notify partners by clearing their card cache
+    pair_ids = user.get("pair_ids", [])
+    for pair_id in pair_ids:
+        pair = await db.pairs.find_one({"_id": BsonObjectId(pair_id)})
+        if pair:
+            # Remove user from pair members
+            await db.pairs.update_one(
+                {"_id": pair["_id"]},
+                {"$pull": {"members": user_id}}
+            )
+            # Remove pair_id from partner's pair_ids
+            partner_ids = [m for m in pair.get("members", []) if m != user_id]
+            for partner_id in partner_ids:
+                await db.users.update_one(
+                    {"_id": BsonObjectId(partner_id)},
+                    {"$pull": {"pair_ids": BsonObjectId(pair_id)}}
+                )
+            # Delete received cards for this pair
+            await db.cards.delete_many({"pair_id": pair_id})
+
+    # Delete device tokens
+    await db.devices.delete_many({"user_id": user_id})
+
+    # Delete password reset tokens
+    await db.password_resets.delete_many({"user_id": BsonObjectId(user_id)})
+
+    # Delete the user
+    await db.users.delete_one({"_id": BsonObjectId(user_id)})
+
+    logger.info(f"[Account] Deleted account for user {user_id}")
+    return {"message": "Hesabınız kalıcı olarak silindi."}
 
 
 # --- Device / Push Notification Routes ---
