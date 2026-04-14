@@ -27,13 +27,13 @@ struct AuthView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
 
-                    Spacer().frame(height: 32)
+                    Spacer().frame(height: 20)
 
                     // "Ready for a" above logo
                     Text("Ready for a")
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(textDark)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 4)
 
                     // Logo image with "HI THERE!" badge
                     ZStack(alignment: .topTrailing) {
@@ -53,14 +53,14 @@ struct AuthView: View {
                             .rotationEffect(.degrees(8))
                             .offset(x: 16, y: -10)
                     }
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 0)
 
                     Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(textDark.opacity(0.7))
                         .multilineTextAlignment(.center)
-                        .padding(.top, 4)
-                        .padding(.bottom, 24)
+                        .padding(.top, 2)
+                        .padding(.bottom, 16)
                         .padding(.horizontal, 32)
 
                     // Main Card
