@@ -230,11 +230,11 @@ struct AuthView: View {
     func handleSubmit() {
         errorMsg = ""
         guard !email.isEmpty, !password.isEmpty else {
-            errorMsg = "Lütfen tüm alanları doldur."
+            errorMsg = "Please fill in all fields."
             return
         }
         if !isLogin && name.isEmpty {
-            errorMsg = "Lütfen ismini gir."
+            errorMsg = "Please enter your name."
             return
         }
         loading = true
@@ -318,96 +318,116 @@ struct ForgotPasswordView: View {
             bg.ignoresSafeArea()
             DottedBackground(dotColor: Color(hex: "#E9D5FF"))
 
-            VStack(spacing: 28) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("🔑")
-                        .font(.system(size: 60))
-                    Text("Şifre Sıfırla")
-                        .font(.system(size: 28, weight: .black, design: .rounded))
-                        .foregroundStyle(dark)
-                    Text("E-posta adresini gir, sıfırlama\nbağlantısı gönderelim.")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(dark.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 60)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: 48)
 
-                if sent {
-                    // Success state
-                    VStack(spacing: 16) {
-                        Text("✅")
-                            .font(.system(size: 48))
-                        Text("E-posta gönderildi!")
-                            .font(.system(size: 20, weight: .black, design: .rounded))
+                    // Icon + title
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(purple.opacity(0.15))
+                                .frame(width: 100, height: 100)
+                                .overlay(Circle().stroke(dark, lineWidth: 3))
+                                .shadow(color: dark, radius: 0, x: 4, y: 4)
+                            Text("🔑")
+                                .font(.system(size: 48))
+                        }
+
+                        Text("Forgot Password?")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
                             .foregroundStyle(dark)
-                        Text("Gelen kutunu kontrol et ve\nbağlantıya tıkla.")
+
+                        Text(sent
+                             ? "Check your inbox and follow\nthe link we sent you."
+                             : "Enter your email and we'll send\nyou a reset link.")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(dark.opacity(0.6))
                             .multilineTextAlignment(.center)
-                        Button("Tamam") { dismiss() }
-                            .font(.system(size: 18, weight: .heavy, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(purple)
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(dark, lineWidth: 3))
-                            .shadow(color: dark, radius: 0, x: 0, y: 5)
-                            .padding(.top, 8)
                     }
-                    .padding(.horizontal, 32)
-                } else {
-                    // Input state
-                    VStack(spacing: 16) {
-                        BrutalistTextField(
-                            label: "E-posta",
-                            icon: "envelope.fill",
-                            placeholder: "eposta@adresin.com",
-                            text: $email,
-                            keyboardType: .emailAddress,
-                            strokeColor: dark,
-                            inputBg: inputBg
-                        )
+                    .padding(.bottom, 32)
 
-                        if !errorMsg.isEmpty {
-                            Text(errorMsg)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color(hex: "#DC2626"))
-                                .multilineTextAlignment(.center)
-                        }
+                    // Card
+                    VStack(spacing: 20) {
+                        if sent {
+                            // Success state
+                            VStack(spacing: 20) {
+                                Text("✅")
+                                    .font(.system(size: 56))
+                                Text("Email Sent!")
+                                    .font(.system(size: 22, weight: .black, design: .rounded))
+                                    .foregroundStyle(dark)
 
-                        Button(action: handleReset) {
-                            HStack {
-                                if loading { ProgressView().tint(.white) }
-                                else { Text("Sıfırlama Bağlantısı Gönder") }
+                                Button(action: { dismiss() }) {
+                                    Text("Got it!")
+                                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 56)
+                                        .background(purple)
+                                        .clipShape(Capsule())
+                                        .overlay(Capsule().stroke(dark, lineWidth: 3))
+                                        .shadow(color: dark, radius: 0, x: 0, y: 5)
+                                }
                             }
-                            .font(.system(size: 17, weight: .heavy, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(purple)
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(dark, lineWidth: 3))
-                            .shadow(color: dark, radius: 0, x: 0, y: 5)
+                            .padding(.vertical, 8)
+                        } else {
+                            BrutalistTextField(
+                                label: "Email",
+                                icon: "envelope.fill",
+                                placeholder: "yourname@sparkle.com",
+                                text: $email,
+                                keyboardType: .emailAddress,
+                                strokeColor: dark,
+                                inputBg: inputBg
+                            )
+
+                            if !errorMsg.isEmpty {
+                                Text(errorMsg)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(Color(hex: "#DC2626"))
+                                    .multilineTextAlignment(.center)
+                            }
+
+                            Button(action: handleReset) {
+                                HStack {
+                                    if loading { ProgressView().tint(.white) }
+                                    else { Text("Send Reset Link") }
+                                }
+                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(purple)
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(dark, lineWidth: 3))
+                                .shadow(color: dark, radius: 0, x: 0, y: 5)
+                            }
+                            .disabled(loading)
                         }
-                        .disabled(loading)
                     }
-                    .padding(.horizontal, 32)
-                }
+                    .padding(28)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 36, style: .continuous).stroke(dark, lineWidth: 4))
+                    .shadow(color: dark, radius: 0, x: 6, y: 8)
+                    .padding(.horizontal, 24)
 
-                Spacer()
+                    Spacer(minLength: 32)
 
-                Button("Geri Dön") { dismiss() }
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(dark.opacity(0.5))
+                    Button(action: { dismiss() }) {
+                        Text("← Back to Login")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(dark.opacity(0.45))
+                    }
                     .padding(.bottom, 40)
+                }
             }
         }
     }
 
     func handleReset() {
-        guard !email.isEmpty else { errorMsg = "E-posta adresini gir."; return }
+        guard !email.isEmpty else { errorMsg = "Please enter your email."; return }
         loading = true
         errorMsg = ""
         Task {
