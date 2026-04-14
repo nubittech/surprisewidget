@@ -529,18 +529,13 @@ struct SurpriseWidgetLogo: View {
             }
 
             // ── Wordmark ─────────────────────────────────────────────────
-            VStack(spacing: 2) {
-                HStack(spacing: 0) {
-                    Text("Surprise")
-                        .font(.system(size: 30, weight: .black, design: .rounded))
-                        .foregroundStyle(dark)
-                    Text(" Widget")
-                        .font(.system(size: 30, weight: .black, design: .rounded))
-                        .foregroundStyle(purple)
-                }
-                Text("Share your surprise ✨")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(dark.opacity(0.5))
+            HStack(spacing: 0) {
+                Text("Surprise")
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(purple)
+                Text(" Widget")
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(dark)
             }
         }
     }
