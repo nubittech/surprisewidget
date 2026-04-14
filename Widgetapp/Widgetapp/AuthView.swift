@@ -39,7 +39,7 @@ struct AuthView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 312)
-                        .padding(.vertical, -65)
+                        .padding(.vertical, -90)
 
                     Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
@@ -153,7 +153,7 @@ struct AuthView: View {
                             .clipShape(Capsule())
                             .overlay(Capsule().stroke(darkStroke, lineWidth: 1.5))
                             .rotationEffect(.degrees(8))
-                            .offset(x: -20, y: -10)
+                            .offset(x: -10, y: -5)
                     }
                     .padding(.horizontal, 24)
 

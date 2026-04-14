@@ -35,15 +35,17 @@ struct ContentView: View {
 struct SplashView: View {
     var body: some View {
         ZStack {
-            Color(hex: "#F3E8FF").ignoresSafeArea()
-            VStack(spacing: 20) {
-                Text("💌").font(.system(size: 72))
-                Text("Sürpriz Kart")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(hex: "#9D4CDD"))
+            Color(hex: "#F8F5FF").ignoresSafeArea()
+            DottedBackground(dotColor: Color(hex: "#E9D5FF"))
+            VStack(spacing: 0) {
+                Image("logo_text")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 280)
+                    .padding(.vertical, -60)
                 ProgressView()
-                    .tint(Color(hex: "#9D4CDD"))
-                    .scaleEffect(1.2)
+                    .tint(Color(hex: "#9D6BFF"))
+                    .scaleEffect(1.3)
             }
         }
     }
