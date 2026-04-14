@@ -31,61 +31,47 @@ struct AuthView: View {
 
                     // "Ready for a" above logo
                     Text("Ready for a")
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .font(.system(size: 42, weight: .heavy, design: .rounded))
                         .foregroundStyle(textDark)
-                        .padding(.bottom, 4)
 
-                    // Logo image with "HI THERE!" badge
-                    ZStack(alignment: .topTrailing) {
-                        Image("logo_text")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 260)
-
-                        Text("HI THERE!")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
-                            .foregroundColor(darkStroke)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color(hex: "#FFB7C5"))
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(darkStroke, lineWidth: 1.5))
-                            .rotationEffect(.degrees(8))
-                            .offset(x: 16, y: -10)
-                    }
-                    .padding(.bottom, 0)
+                    // Logo image (no badge here)
+                    Image("logo_text")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 312)
+                        .padding(.vertical, -65)
 
                     Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(textDark.opacity(0.7))
                         .multilineTextAlignment(.center)
-                        .padding(.top, 2)
                         .padding(.bottom, 16)
                         .padding(.horizontal, 32)
 
-                    // Main Card
-                    VStack(spacing: 18) {
+                    // Main Card — "HI THERE!" badge on top-right corner
+                    ZStack(alignment: .topTrailing) {
+                        VStack(spacing: 18) {
 
-                        if !isLogin {
+                            if !isLogin {
+                                BrutalistTextField(
+                                    label: "Full Name",
+                                    icon: "person.fill",
+                                    placeholder: "Your Name",
+                                    text: $name,
+                                    strokeColor: darkStroke,
+                                    inputBg: inputBgColor
+                                )
+                            }
+
                             BrutalistTextField(
-                                label: "Full Name",
-                                icon: "person.fill",
-                                placeholder: "Your Name",
-                                text: $name,
+                                label: "Email",
+                                icon: "envelope.fill",
+                                placeholder: "yourname@sparkle.com",
+                                text: $email,
+                                keyboardType: .emailAddress,
                                 strokeColor: darkStroke,
                                 inputBg: inputBgColor
                             )
-                        }
-
-                        BrutalistTextField(
-                            label: "Email",
-                            icon: "envelope.fill",
-                            placeholder: "yourname@sparkle.com",
-                            text: $email,
-                            keyboardType: .emailAddress,
-                            strokeColor: darkStroke,
-                            inputBg: inputBgColor
-                        )
 
                         // Password field with inline Forgot? button
                         VStack(alignment: .leading, spacing: 8) {
@@ -151,11 +137,24 @@ struct AuthView: View {
                         .disabled(loading)
                         .padding(.top, 6)
                     }
-                    .padding(28)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(darkStroke, lineWidth: 5))
-                    .shadow(color: darkStroke, radius: 0, x: 8, y: 10)
+                        .padding(28)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(darkStroke, lineWidth: 5))
+                        .shadow(color: darkStroke, radius: 0, x: 8, y: 10)
+
+                        // HI THERE! badge on top-right of card
+                        Text("HI THERE!")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundColor(darkStroke)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color(hex: "#FFB7C5"))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(darkStroke, lineWidth: 1.5))
+                            .rotationEffect(.degrees(8))
+                            .offset(x: -20, y: -10)
+                    }
                     .padding(.horizontal, 24)
 
                     Spacer(minLength: 24)
