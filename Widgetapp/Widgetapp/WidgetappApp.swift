@@ -43,6 +43,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct WidgetappApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var auth = AuthManager()
+    // StoreKit singleton — initialised once, shared via environment
+    private let store = StoreKitManager.shared
 
     var body: some Scene {
         WindowGroup {

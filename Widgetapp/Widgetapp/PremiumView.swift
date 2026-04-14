@@ -1,28 +1,35 @@
 import SwiftUI
+import StoreKit
 
 struct PremiumView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var isPurchasing = false
+    @State private var store = StoreKitManager.shared
     @State private var showSuccess = false
+    @State private var showError = false
 
-    private let navy   = Color(hex: "#2D1E5F")
-    private let purple = Color(hex: "#9D6BFF")
+    private let navy      = Color(hex: "#2D1E5F")
+    private let purple    = Color(hex: "#9D6BFF")
     private let purpleBox = Color(hex: "#CBB3FF")
-    private let yellow = Color(hex: "#FFB800")
+    private let yellow    = Color(hex: "#FFB800")
     private let yellowBox = Color(hex: "#FFD666")
-    private let green  = Color(hex: "#00C985")
-    private let greenBox = Color(hex: "#98FFD9")
-    private let bg     = Color(hex: "#FFF5FF")
-    private let white  = Color.white
+    private let green     = Color(hex: "#00C985")
+    private let greenBox  = Color(hex: "#98FFD9")
+    private let bg        = Color(hex: "#FFF5FF")
+    private let white     = Color.white
 
     private let features: [(String, String)] = [
-        ("infinity",            "Send unlimited cards"),
-        ("person.3.fill",       "Add unlimited friends"),
-        ("paintbrush.pointed.fill", "All backgrounds & stickers"),
-        ("bell.badge.fill",     "Instant notifications"),
-        ("star.fill",           "Priority support"),
-        ("lock.open.fill",      "All future features"),
+        ("infinity",                    "Send unlimited cards"),
+        ("person.3.fill",               "Add unlimited friends"),
+        ("paintbrush.pointed.fill",     "All backgrounds & stickers"),
+        ("bell.badge.fill",             "Instant notifications"),
+        ("star.fill",                   "Priority support"),
+        ("lock.open.fill",              "All future features"),
     ]
+
+    // Formatted price from StoreKit, fallback to $5.99
+    var priceString: String {
+        store.product?.displayPrice ?? "$5.99"
+    }
 
     var body: some View {
         ZStack {
@@ -30,6 +37,7 @@ struct PremiumView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
+
                     // Close button
                     HStack {
                         Spacer()
@@ -46,7 +54,7 @@ struct PremiumView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
 
-                    // Hero
+                    // Hero icon
                     Circle()
                         .fill(yellowBox)
                         .frame(width: 100, height: 100)
@@ -56,14 +64,13 @@ struct PremiumView: View {
                                 .foregroundStyle(navy)
                         )
                         .overlay(Circle().stroke(navy, lineWidth: 4))
-                    .padding(.top, 8)
+                        .padding(.top, 8)
 
                     // Title
                     VStack(spacing: 8) {
                         Text("Go Premium")
                             .font(.system(size: 32, weight: .heavy, design: .rounded))
                             .foregroundStyle(navy)
-
                         Text("Unlimited surprises await!")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(purple)
@@ -83,17 +90,12 @@ struct PremiumView: View {
                                         .font(.system(size: 16, weight: .bold))
                                         .foregroundStyle(navy)
                                 }
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(navy, lineWidth: 2)
-                                )
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(navy, lineWidth: 2))
 
                                 Text(text)
                                     .font(.system(size: 15, weight: .bold, design: .rounded))
                                     .foregroundStyle(navy)
-
                                 Spacer()
-
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 20))
                                     .foregroundStyle(green)
@@ -120,23 +122,15 @@ struct PremiumView: View {
                                 .background(yellowBox)
                                 .clipShape(Capsule())
                                 .overlay(Capsule().stroke(navy, lineWidth: 2))
-
                             Text("One-time payment")
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(navy.opacity(0.6))
                         }
 
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("$")
-                                .font(.system(size: 22, weight: .heavy, design: .rounded))
-                                .foregroundStyle(purple)
-                            Text("5")
-                                .font(.system(size: 56, weight: .heavy, design: .rounded))
-                                .foregroundStyle(navy)
-                            Text(".99")
-                                .font(.system(size: 28, weight: .heavy, design: .rounded))
-                                .foregroundStyle(navy)
-                        }
+                        // Price — dynamic from StoreKit
+                        Text(priceString)
+                            .font(.system(size: 52, weight: .heavy, design: .rounded))
+                            .foregroundStyle(navy)
 
                         Text("No subscription · No hidden fees")
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -152,15 +146,21 @@ struct PremiumView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
 
-                    // CTA Button
-                    Button(action: purchase) {
+                    // CTA — Purchase button
+                    Button(action: {
+                        Task {
+                            await store.purchase()
+                            if store.isPurchased { withAnimation { showSuccess = true } }
+                            if store.errorMessage != nil { showError = true }
+                        }
+                    }) {
                         HStack(spacing: 10) {
-                            if isPurchasing {
+                            if store.isLoading {
                                 ProgressView().tint(navy)
                             } else {
                                 Image(systemName: "lock.open.fill")
                                     .font(.system(size: 18, weight: .bold))
-                                Text("Unlock All Features · $5.99")
+                                Text("Unlock All Features · \(priceString)")
                                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                             }
                         }
@@ -172,15 +172,31 @@ struct PremiumView: View {
                         .overlay(Capsule().stroke(navy, lineWidth: 4))
                         .shadow(color: navy, radius: 0, x: 4, y: 4)
                     }
-                    .disabled(isPurchasing)
+                    .disabled(store.isLoading)
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
+
+                    // Restore Purchases — required by Apple
+                    Button(action: {
+                        Task {
+                            await store.restorePurchases()
+                            if store.isPurchased { withAnimation { showSuccess = true } }
+                            if store.errorMessage != nil { showError = true }
+                        }
+                    }) {
+                        Text("Restore Purchases")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(purple)
+                            .underline()
+                    }
+                    .disabled(store.isLoading)
+                    .padding(.top, 12)
 
                     Text("Payment is processed through the App Store.")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(navy.opacity(0.4))
                         .multilineTextAlignment(.center)
-                        .padding(.top, 10)
+                        .padding(.top, 8)
                         .padding(.bottom, 40)
                 }
             }
@@ -223,15 +239,12 @@ struct PremiumView: View {
             }
         }
         .animation(.spring(response: 0.4), value: showSuccess)
-    }
-
-    func purchase() {
-        isPurchasing = true
-        // TODO: StoreKit integration — for now simulate a brief delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isPurchasing = false
-            withAnimation { showSuccess = true }
+        .alert("Purchase Failed", isPresented: $showError) {
+            Button("OK") { store.errorMessage = nil }
+        } message: {
+            Text(store.errorMessage ?? "An error occurred.")
         }
+        .task { await store.loadProducts() }
     }
 }
 
