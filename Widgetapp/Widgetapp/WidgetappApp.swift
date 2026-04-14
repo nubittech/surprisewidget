@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import RevenueCat
 
 // MARK: - AppDelegate for Push Notifications
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -7,8 +8,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Permission is requested via NotificationPermissionView shown
-        // after first login — NOT on cold launch (better acceptance rate).
+        // RevenueCat — configure before anything else
+        Purchases.configure(withAPIKey: "test_JbsCON1ohgYnM0PZefaMCknrGP")
+        // Uncomment below for verbose logs during development:
+        // Purchases.logLevel = .debug
         return true
     }
 

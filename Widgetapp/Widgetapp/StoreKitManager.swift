@@ -1,36 +1,44 @@
-import StoreKit
+import RevenueCat
 import SwiftUI
 
 @Observable
 class StoreKitManager {
     static let shared = StoreKitManager()
 
-    // Product ID — must match exactly what you create in App Store Connect
-    static let premiumProductID = "com.surprisecard.premium.lifetime"
+    // RevenueCat entitlement identifier
+    static let entitlementID = "Surprisewidget Unlimited"
 
-    private(set) var product: Product?
     private(set) var isPurchased = false
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
-    private var transactionListener: Task<Void, Error>?
+    // The lifetime package fetched from RevenueCat offerings
+    private(set) var lifetimePackage: Package?
+
+    // Formatted price string e.g. "$5.99"
+    var priceString: String {
+        lifetimePackage?.storeProduct.localizedPriceString ?? "$5.99"
+    }
 
     private init() {
-        transactionListener = listenForTransactions()
-        Task { await loadProducts() }
-        Task { await updatePurchasedStatus() }
+        Task {
+            await fetchOfferings()
+            await updatePurchasedStatus()
+        }
     }
 
-    deinit {
-        transactionListener?.cancel()
-    }
+    // MARK: - Fetch Offerings
 
-    // MARK: - Load Products
-
-    func loadProducts() async {
+    func fetchOfferings() async {
         do {
-            let products = try await Product.products(for: [StoreKitManager.premiumProductID])
-            await MainActor.run { product = products.first }
+            let offerings = try await Purchases.shared.offerings()
+            // Look for a package with packageType .lifetime in current offering
+            if let current = offerings.current {
+                let pkg = current.availablePackages.first {
+                    $0.packageType == .lifetime
+                }
+                await MainActor.run { lifetimePackage = pkg }
+            }
         } catch {
             await MainActor.run { errorMessage = "Could not load products." }
         }
@@ -39,29 +47,23 @@ class StoreKitManager {
     // MARK: - Purchase
 
     func purchase() async {
-        guard let product else {
-            errorMessage = "Product not available."
+        guard let pkg = lifetimePackage else {
+            await MainActor.run { errorMessage = "Product not available. Try again." }
             return
         }
         await MainActor.run { isLoading = true; errorMessage = nil }
-        defer { Task { @MainActor in isLoading = false } }
-
         do {
-            let result = try await product.purchase()
-            switch result {
-            case .success(let verification):
-                let transaction = try checkVerified(verification)
-                await updatePurchasedStatus()
-                await transaction.finish()
-            case .userCancelled:
-                break
-            case .pending:
-                await MainActor.run { errorMessage = "Purchase is pending approval." }
-            @unknown default:
-                break
+            let result = try await Purchases.shared.purchase(package: pkg)
+            let active = result.customerInfo.entitlements[StoreKitManager.entitlementID]?.isActive == true
+            await MainActor.run {
+                isPurchased = active
+                isLoading = false
             }
         } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
         }
     }
 
@@ -69,58 +71,31 @@ class StoreKitManager {
 
     func restorePurchases() async {
         await MainActor.run { isLoading = true; errorMessage = nil }
-        defer { Task { @MainActor in isLoading = false } }
-
         do {
-            try await AppStore.sync()
-            await updatePurchasedStatus()
+            let info = try await Purchases.shared.restorePurchases()
+            let active = info.entitlements[StoreKitManager.entitlementID]?.isActive == true
+            await MainActor.run {
+                isPurchased = active
+                isLoading = false
+                if !active { errorMessage = "No previous purchase found." }
+            }
         } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
         }
     }
 
-    // MARK: - Check Current Entitlements
+    // MARK: - Check Entitlement
 
     func updatePurchasedStatus() async {
-        var purchased = false
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result,
-               transaction.productID == StoreKitManager.premiumProductID,
-               transaction.revocationDate == nil {
-                purchased = true
-            }
-        }
-        await MainActor.run { isPurchased = purchased }
-    }
-
-    // MARK: - Listen for Transactions (handles renewals, refunds, etc.)
-
-    private func listenForTransactions() -> Task<Void, Error> {
-        Task.detached {
-            for await result in Transaction.updates {
-                do {
-                    let transaction = try self.checkVerified(result)
-                    await self.updatePurchasedStatus()
-                    await transaction.finish()
-                } catch {
-                    // Transaction failed verification
-                }
-            }
+        do {
+            let info = try await Purchases.shared.customerInfo()
+            let active = info.entitlements[StoreKitManager.entitlementID]?.isActive == true
+            await MainActor.run { isPurchased = active }
+        } catch {
+            // Fail silently — user stays on free tier
         }
     }
-
-    // MARK: - Verification Helper
-
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
-        switch result {
-        case .unverified:
-            throw StoreError.failedVerification
-        case .verified(let safe):
-            return safe
-        }
-    }
-}
-
-enum StoreError: Error {
-    case failedVerification
 }
