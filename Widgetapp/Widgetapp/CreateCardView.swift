@@ -253,10 +253,10 @@ struct CreateCardView: View {
                         .overlay(Circle().stroke(cPurpleBorder, lineWidth: 3))
 
                         VStack(spacing: 6) {
-                            Text("Gönderildi!")
+                            Text("Sent! 🎉")
                                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                                 .foregroundStyle(cPurpleBorder)
-                            Text("Kartın yolda, sürpriz hazır!")
+                            Text("Your card is on its way!")
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .foregroundStyle(cTextMuted)
                         }
@@ -372,7 +372,7 @@ struct CreateCardView: View {
                     .overlay(Circle().stroke(cPurpleBorder, lineWidth: 3))
             }
             Spacer()
-            Text("Kart Oluştur")
+            Text("Create Card")
                 .font(.system(size: 20, weight: .black, design: .rounded))
                 .foregroundStyle(cPurpleBorder)
             Spacer()
@@ -381,7 +381,7 @@ struct CreateCardView: View {
                     if sending {
                         ProgressView().tint(cWhite).scaleEffect(0.8)
                     } else {
-                        Text("Gönder")
+                        Text("Send")
                             .font(.system(size: 16, weight: .black))
                     }
                 }
@@ -469,7 +469,7 @@ struct CreateCardView: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(cPurpleBorder)
-            Text("Kart göndermek için önce eşleşmen gerekli")
+            Text("You need to connect with someone first")
                 .font(.system(size: 13, weight: .heavy))
                 .foregroundStyle(cPurpleBorder)
         }
@@ -506,7 +506,7 @@ struct CreateCardView: View {
                         .foregroundStyle(cTextMain)
                         .lineLimit(1)
                 } else {
-                    Text("Arkadaş Seç")
+                    Text("Select Friend")
                         .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundStyle(cPurple)
                 }
@@ -599,7 +599,7 @@ struct CreateCardView: View {
             HStack(spacing: 4) {
                 toolTabBtn(icon: "paintpalette", label: "Arkaplan", tab: .bg)
                 toolTabBtn(icon: "face.smiling", label: "Sticker", tab: .sticker)
-                toolTabBtn(icon: "textformat", label: "Yazı", tab: .text, action: {
+                toolTabBtn(icon: "textformat", label: "Text", tab: .text, action: {
                     activeTab = .text
                     showTextSheet = true
                 })
@@ -780,7 +780,7 @@ struct CreateCardView: View {
     var textSheet: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                Text("Yazı Ekle")
+                Text("Add Text")
                     .font(.system(size: 24, weight: .black))
                     .foregroundStyle(cPurpleBorder)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -835,7 +835,7 @@ struct CreateCardView: View {
                         showTextSheet = false
                         activeTab = .none
                     }) {
-                        Text("İptal")
+                        Text("Cancel")
                             .font(.system(size: 16, weight: .heavy))
                     }
                     .frame(maxWidth: .infinity)
@@ -901,7 +901,7 @@ struct CreateCardView: View {
     func sendCard() {
         guard (auth.user?.pair_ids?.isEmpty == false) else {
             alertIsSuccess = false
-            alertMsg = "Kart göndermek için en az bir arkadaş ekle"
+            alertMsg = "Add at least one friend to send a card"
             withAnimation(.spring(response: 0.4)) { showAlert = true }
             return
         }
@@ -912,7 +912,7 @@ struct CreateCardView: View {
         }
         guard !elements.isEmpty else {
             alertIsSuccess = false
-            alertMsg = "Kartına en az bir öğe ekle"
+            alertMsg = "Add at least one element to your card"
             withAnimation(.spring(response: 0.4)) { showAlert = true }
             return
         }

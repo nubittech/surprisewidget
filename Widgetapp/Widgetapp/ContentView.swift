@@ -70,15 +70,15 @@ struct MainTabView: View {
             
             // Custom Floating Tab Bar
             HStack(spacing: 0) {
-                tabButton(title: "Ana Sayfa", icon: selectedTab == 0 ? "house.fill" : "house", isSelected: selectedTab == 0) { 
+                tabButton(title: "Home", icon: selectedTab == 0 ? "house.fill" : "house", isSelected: selectedTab == 0) { 
                     selectedTab = 0 
                 }
                 Spacer()
-                centerTabButton(title: "Kart Oluştur", icon: "plus", isSelected: false) { 
+                centerTabButton(title: "Create Card", icon: "plus", isSelected: false) { 
                     showCreateCard = true
                 }
                 Spacer()
-                centerTabButton(title: "Profil", icon: "person.fill", isSelected: selectedTab == 2, circleColor: Color(hex: "#FFD666")) { 
+                centerTabButton(title: "Profile", icon: "person.fill", isSelected: selectedTab == 2, circleColor: Color(hex: "#FFD666")) { 
                     selectedTab = 2 
                 }
             }

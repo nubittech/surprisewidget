@@ -48,7 +48,7 @@ class AuthManager {
     func loginWithApple(credential: ASAuthorizationAppleIDCredential) async throws {
         guard let tokenData = credential.identityToken,
               let identityToken = String(data: tokenData, encoding: .utf8) else {
-            throw APIError.serverError("Apple kimlik bilgisi alınamadı")
+            throw APIError.serverError("Could not retrieve Apple credentials")
         }
 
         var fullName: String? = nil

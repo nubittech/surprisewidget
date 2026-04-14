@@ -138,7 +138,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Doğum Günü",
+        name: "🎂 Birthday",
         icon: "gift.fill",
         items: [
             .image("stk_bday_happy"),
@@ -158,7 +158,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Aşk",
+        name: "💘 Love",
         icon: "heart.fill",
         items: [
             .image("stk_love_heart"),
@@ -188,7 +188,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Doğa",
+        name: "🌿 Nature",
         icon: "leaf.fill",
         items: [
             .image("stk_nature_autumn"),

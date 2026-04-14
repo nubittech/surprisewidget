@@ -114,24 +114,24 @@ struct OnboardingView: View {
             
             // Text Content
             VStack(spacing: 16) {
-                Text("Ana ekranında\nsürpriz mesajlar")
+                Text("Surprise messages\non their home screen")
                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                     .foregroundColor(textDark)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
-                
-                Text("Sevdiklerinle widget üzerinden sürpriz kartlar paylaş.")
+
+                Text("Share surprise cards with loved ones right on their widget.")
                     .font(.system(size: 16, weight: .regular))
                     .foregroundColor(textGray)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
-                
+
                 // Feature Tag
                 HStack(spacing: 8) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 12))
-                    Text("Yeni Özellik: Hareketli Kartlar")
+                    Text("New: Animated Cards")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
                 .foregroundColor(Color(hex: "#92400E"))
@@ -151,11 +151,11 @@ struct OnboardingView: View {
             Spacer(minLength: 16)
             
             VStack(spacing: 8) {
-                Text("Nasıl Çalışır?")
+                Text("How It Works")
                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                     .foregroundColor(textDark)
-                
-                Text("Sevdiklerinle bağ kurmanın en tatlı yolu.")
+
+                Text("The sweetest way to connect with the ones you love.")
                     .font(.system(size: 16))
                     .foregroundColor(textGray)
                     .multilineTextAlignment(.center)
@@ -165,27 +165,27 @@ struct OnboardingView: View {
             
             VStack(spacing: 12) {
                 featureCard(
-                    step: "ADIM 1",
-                    title: "Birini ekle",
-                    desc: "Arkadaşını rehberinden kolayca seç ve davet et.",
+                    step: "STEP 1",
+                    title: "Add Someone",
+                    desc: "Invite a friend, partner, or family member in seconds.",
                     icon: "person.badge.plus",
                     iconColor: Color(hex: "#6EE7B7"),
                     iconBg: Color(hex: "#D1FAE5")
                 )
-                
+
                 featureCard(
-                    step: "ADIM 2",
-                    title: "Widget koy",
-                    desc: "Ana ekranına özel sürpriz widget'ını ekle.",
+                    step: "STEP 2",
+                    title: "Add the Widget",
+                    desc: "Place the Surprise Widget on your home screen.",
                     icon: "square.grid.2x2.fill",
                     iconColor: accentPurple,
                     iconBg: Color(hex: "#F3E8FF")
                 )
-                
+
                 featureCard(
-                    step: "ADIM 3",
-                    title: "Sürpriz al",
-                    desc: "Sevdiklerinden gelen fotoğraflar ekranda belirsin!",
+                    step: "STEP 3",
+                    title: "Receive Surprises",
+                    desc: "Cards from loved ones appear right on your screen!",
                     icon: "sparkles",
                     iconColor: Color(hex: "#F59E0B"),
                     iconBg: Color(hex: "#FEF3C7")
@@ -220,7 +220,7 @@ struct OnboardingView: View {
                 }
             }) {
                 HStack {
-                    Text(currentTab == 0 ? "Başla" : "Giriş Yap / Kayıt Ol")
+                    Text(currentTab == 0 ? "Next" : "Log In / Sign Up")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                     if currentTab > 0 {
                         Image(systemName: "arrow.right")
@@ -237,7 +237,7 @@ struct OnboardingView: View {
             
             // Subtext for step 2
             if currentTab == 1 {
-                Text("Hemen başla, sürprizleri kaçırma!")
+                Text("Start now, don't miss the surprises!")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(textGray)
             } else {

@@ -37,27 +37,27 @@ struct SettingsView: View {
                 VStack(spacing: 24) {
 
                     // ── Yasal ───────────────────────────────────────────
-                    sectionHeader("YASAL")
+                    sectionHeader("LEGAL")
 
                     settingsCard {
-                        settingsRow(icon: "hand.raised.fill", iconColor: cPurple, title: "Gizlilik Politikası") {
+                        settingsRow(icon: "hand.raised.fill", iconColor: cPurple, title: "Privacy Policy") {
                             openURL(privacyURL)
                         }
                         Divider().background(cPurpleLight)
-                        settingsRow(icon: "doc.text.fill", iconColor: cPurple, title: "Kullanım Koşulları") {
+                        settingsRow(icon: "doc.text.fill", iconColor: cPurple, title: "Terms of Use") {
                             openURL(termsURL)
                         }
                     }
 
                     // ── Destek ──────────────────────────────────────────
-                    sectionHeader("DESTEK")
+                    sectionHeader("SUPPORT")
 
                     settingsCard {
-                        settingsRow(icon: "envelope.fill", iconColor: Color(hex: "#2DD4BF"), title: "Bize Ulaş") {
+                        settingsRow(icon: "envelope.fill", iconColor: Color(hex: "#2DD4BF"), title: "Contact Us") {
                             openURL(supportURL)
                         }
                         Divider().background(cPurpleLight)
-                        settingsRow(icon: "star.fill", iconColor: Color(hex: "#FADB5F"), title: "Uygulamayı Değerlendir") {
+                        settingsRow(icon: "star.fill", iconColor: Color(hex: "#FADB5F"), title: "Rate the App") {
                             if let url = URL(string: "itms-apps://itunes.apple.com/app/idYOUR_APP_ID?action=write-review") {
                                 openURL(url)
                             }
@@ -65,28 +65,28 @@ struct SettingsView: View {
                     }
 
                     // ── Uygulama Hakkında ───────────────────────────────
-                    sectionHeader("HAKKINDA")
+                    sectionHeader("ABOUT")
 
                     VStack(spacing: 0) {
                         infoRow(icon: "🎁", title: "Surprise Widget", value: "")
                         Divider().background(cPurpleLight)
-                        infoRow(icon: "📦", title: "Sürüm", value: appVersion)
+                        infoRow(icon: "📦", title: "Version", value: appVersion)
                         Divider().background(cPurpleLight)
-                        infoRow(icon: "🏢", title: "Geliştirici", value: "Nubit Tech")
+                        infoRow(icon: "🏢", title: "Developer", value: "Nubit Tech")
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(cPurpleBorder, lineWidth: 3))
                     .shadow(color: cPurpleBorder, radius: 0, x: 0, y: 4)
 
                     // ── Hesap ────────────────────────────────────────────
-                    sectionHeader("HESAP")
+                    sectionHeader("ACCOUNT")
 
                     // Çıkış Yap
                     Button(action: { auth.logout() }) {
                         HStack {
                             Image(systemName: "arrow.right.square.fill")
                                 .font(.system(size: 20))
-                            Text("Çıkış Yap")
+                            Text("Log Out")
                                 .font(.system(size: 18, weight: .black, design: .rounded))
                         }
                         .foregroundStyle(cPurpleBorder)
@@ -106,7 +106,7 @@ struct SettingsView: View {
                             } else {
                                 Image(systemName: "trash.fill")
                                     .font(.system(size: 20))
-                                Text("Hesabı Kalıcı Olarak Sil")
+                                Text("Delete Account Permanently")
                                     .font(.system(size: 18, weight: .black, design: .rounded))
                             }
                         }
@@ -121,7 +121,7 @@ struct SettingsView: View {
                     .disabled(deleteLoading)
 
                     // Hesap silme açıklaması
-                    Text("Hesabınızı sildiğinizde tüm kartlarınız, eşleşmeleriniz ve verileriniz kalıcı olarak silinir. Bu işlem geri alınamaz.")
+                    Text("When you delete your account, all your cards, matches, and data will be permanently deleted. This action cannot be undone.")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(cTextMuted)
                         .multilineTextAlignment(.center)
@@ -131,18 +131,18 @@ struct SettingsView: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationTitle("Ayarlar")
+        .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
-        .alert("Hesabı Sil", isPresented: $showDeleteAlert) {
-            Button("İptal", role: .cancel) { }
-            Button("Evet, Kalıcı Olarak Sil", role: .destructive) {
+        .alert("Delete Account", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Yes, Delete Permanently", role: .destructive) {
                 deleteAccount()
             }
         } message: {
-            Text("Tüm verileriniz, kartlarınız ve eşleşmeleriniz kalıcı olarak silinecek. Bu işlem geri alınamaz!")
+            Text("All your cards, matches, and data will be permanently deleted. This action cannot be undone!")
         }
-        .alert("Hata", isPresented: $showDeleteError) {
-            Button("Tamam") {}
+        .alert("Error", isPresented: $showDeleteError) {
+            Button("OK") {}
         } message: { Text(deleteErrorMsg) }
     }
 

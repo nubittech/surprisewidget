@@ -43,14 +43,14 @@ struct NotificationPermissionView: View {
                 .padding(.bottom, 36)
 
                 // ── Heading ──────────────────────────────────────────
-                Text("Sürprizleri\nKaçırma! 🎁")
+                Text("Don't Miss\nthe Surprises! 🎁")
                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                     .foregroundStyle(cPurpleDark)
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 16)
 
                 // ── Body text ────────────────────────────────────────
-                Text("Arkadaşın sana kart gönderdiğinde widget'ın anında güncellensin, haberin olsun diye bildirimlere ihtiyacımız var.")
+                Text("We need notifications so you know instantly when a friend sends you a card and your widget updates.")
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(cPurpleDark.opacity(0.7))
                     .multilineTextAlignment(.center)
@@ -59,9 +59,9 @@ struct NotificationPermissionView: View {
 
                 // ── Feature chips ─────────────────────────────────────
                 VStack(spacing: 12) {
-                    featureChip(emoji: "🎁", text: "Yeni kart anında bildirim gelir")
-                    featureChip(emoji: "🖼️", text: "Widget açmadan güncellenir")
-                    featureChip(emoji: "🔕", text: "İstediğin zaman kapatırsın")
+                    featureChip(emoji: "🎁", text: "Get notified instantly for new cards")
+                    featureChip(emoji: "🖼️", text: "Widget updates without opening the app")
+                    featureChip(emoji: "🔕", text: "You can turn it off anytime")
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
@@ -71,7 +71,7 @@ struct NotificationPermissionView: View {
                 // ── CTA button ────────────────────────────────────────
                 Button(action: requestPermission) {
                     HStack(spacing: 10) {
-                        Text("Bildirimlere İzin Ver")
+                        Text("Allow Notifications")
                             .font(.system(size: 18, weight: .black, design: .rounded))
                             .foregroundStyle(cPurpleDark)
                         Text("🔔")
@@ -88,7 +88,7 @@ struct NotificationPermissionView: View {
 
                 // ── Skip ─────────────────────────────────────────────
                 Button(action: onDone) {
-                    Text("Şimdi değil")
+                    Text("Not Now")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(cPurpleDark.opacity(0.4))
                         .padding(.vertical, 16)

@@ -42,7 +42,7 @@ struct ProfileView: View {
                                 .overlay(Circle().stroke(cPurpleBorder, lineWidth: 3))
 
                             VStack(spacing: 4) {
-                                Text(auth.user?.name ?? "Kullanıcı")
+                                Text(auth.user?.name ?? "User")
                                     .font(.system(size: 24, weight: .black, design: .rounded))
                                     .foregroundStyle(cPurpleBorder)
                                     
@@ -61,12 +61,12 @@ struct ProfileView: View {
                         // Friends Section
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Arkadaşlar")
+                                Text("Friends")
                                     .font(.system(size: 20, weight: .black, design: .rounded))
                                     .foregroundStyle(cPurpleBorder)
                                 Spacer()
                                 Button(action: { showInviteSheet = true }) {
-                                    Label("Ekle", systemImage: "plus")
+                                    Label("Add", systemImage: "plus")
                                         .font(.system(size: 14, weight: .black))
                                         .foregroundStyle(cPurpleBorder)
                                         .padding(.horizontal, 16)
@@ -81,7 +81,7 @@ struct ProfileView: View {
                             if loadingFriends {
                                 ProgressView().tint(cPurpleBorder).frame(maxWidth: .infinity)
                             } else if friends.isEmpty {
-                                Text("Henüz arkadaş yok. + Ekle butonuna bas!")
+                                Text("No friends yet. Tap + Add to get started!")
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundStyle(cTextMuted)
                                     .frame(maxWidth: .infinity, alignment: .center)
@@ -108,7 +108,7 @@ struct ProfileView: View {
                                                     .font(.system(size: 13, weight: .bold))
                                                     .foregroundStyle(cTextMuted)
                                             } else {
-                                                Text("Eşleşildi ❤️")
+                                                Text("Connected ❤️")
                                                     .font(.system(size: 13, weight: .bold))
                                                     .foregroundStyle(cTextMuted)
                                             }
@@ -138,7 +138,7 @@ struct ProfileView: View {
 
                         // Actions
                         Button(action: { auth.logout() }) {
-                            Label("Çıkış Yap", systemImage: "arrow.right.square.fill")
+                            Label("Log Out", systemImage: "arrow.right.square.fill")
                                 .font(.system(size: 18, weight: .black, design: .rounded))
                                 .foregroundStyle(cPurpleBorder)
                                 .frame(maxWidth: .infinity)
@@ -152,7 +152,7 @@ struct ProfileView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("Profil")
+            .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -163,16 +163,16 @@ struct ProfileView: View {
                     }
                 }
             }
-            .alert("Arkadaşlığı Sil", isPresented: $showUnpairAlert) {
-                Button("İptal", role: .cancel) {}
+            .alert("Remove Friend", isPresented: $showUnpairAlert) {
+                Button("Cancel", role: .cancel) {}
                 Button("Sil", role: .destructive) {
                     if let f = unpairTarget { unpair(friend: f) }
                 }
             } message: {
-                Text("\(unpairTarget?.displayName ?? "Bu kişi") ile arkadaşlığı silmek istiyor musun?")
+                Text("\(unpairTarget?.displayName ?? "This person") are you sure you want to remove this friend?")
             }
-            .alert("Hata", isPresented: $showError) {
-                Button("Tamam") {}
+            .alert("Error", isPresented: $showError) {
+                Button("OK") {}
             } message: { Text(errorMsg) }
             .sheet(isPresented: $showInviteSheet) { inviteCodeSheet }
             .task { await loadFriends() }
@@ -184,12 +184,12 @@ struct ProfileView: View {
             ZStack {
                 cBg.ignoresSafeArea()
                 VStack(spacing: 24) {
-                    Text("Davet Kodu")
+                    Text("Invite Code")
                         .font(.system(size: 28, weight: .black, design: .rounded))
                         .foregroundStyle(cPurpleBorder)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Text("Bu kodu arkadaşınla paylaş!")
+                    Text("Share this code with your friend!")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(cTextMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,7 +206,7 @@ struct ProfileView: View {
                             .shadow(color: cPurpleBorder, radius: 0, x: 4, y: 6)
 
                         Button(action: { UIPasteboard.general.string = code }) {
-                            Label("Kopyala", systemImage: "doc.on.doc.fill")
+                            Label("Copy", systemImage: "doc.on.doc.fill")
                                 .font(.system(size: 18, weight: .black))
                                 .foregroundStyle(cWhite)
                                 .frame(maxWidth: .infinity)

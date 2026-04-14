@@ -162,7 +162,7 @@ struct HomeView: View {
             // Premium gift button
             Button(action: { showPremium = true }) {
                 HStack(spacing: 8) {
-                    Text("Tüm özellikleri aç")
+                    Text("Unlock all features")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
                         .foregroundStyle(NB.outline)
 
@@ -553,7 +553,7 @@ struct HomeView: View {
                 Text("Davet Kodu")
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .foregroundStyle(NB.outline)
-                Text("Bu kodu arkadaşınla paylaş:")
+                Text("Share this code with your friend:")
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(NB.muted)
 
@@ -598,14 +598,14 @@ struct HomeView: View {
 
     // MARK: - Partner Profile Sheet
 
-    private let relationships = ["Sevgilim 💕", "Bodyim 🤝", "Bestiem ✨", "Kardeşim 👫", "Canım 💖"]
+    private let relationships = ["My Love 💕", "My Bestie 🤝", "Bestiem ✨", "My Sibling 👫", "My Dear 💖"]
 
     var partnerProfileSheet: some View {
         NavigationStack {
             VStack(spacing: 24) {
                 // Title
                 VStack(spacing: 8) {
-                    Text("🎉 Eşleşme Başarılı!")
+                    Text("🎉 Connected!")
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(NB.outline)
                     Text("\(widgetSetupPartnerName) için bir profil oluştur")
@@ -615,7 +615,7 @@ struct HomeView: View {
 
                 // Nickname input
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Kişi Adı")
+                    Text("Name")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(NB.outline)
                     TextField("Bir takma ad ver...", text: $partnerNickname)
@@ -746,7 +746,7 @@ struct HomeView: View {
                 SharedDataManager.shared.saveFriends(friends)
                 SharedDataManager.shared.reloadWidgets()
                 // Go straight to widget setup
-                widgetSetupPartnerName = resp.partner_name.isEmpty ? "Arkadaş" : resp.partner_name
+                widgetSetupPartnerName = resp.partner_name.isEmpty ? "Friend" : resp.partner_name
                 widgetSetupIsNewPairing = true
                 showWidgetSetup = true
             } catch {

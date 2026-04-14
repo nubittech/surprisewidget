@@ -9,11 +9,11 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:               return "Geçersiz URL"
+        case .invalidURL:               return "Invalid URL"
         case .serverError(let m):       return m
-        case .unauthorized:             return "Oturum süresi doldu, lütfen tekrar giriş yapın"
-        case .invalidCredentials:       return "E-posta veya şifre hatalı"
-        case .unknown(let code):        return "Beklenmeyen hata (\(code))"
+        case .unauthorized:             return "Session expired, please log in again"
+        case .invalidCredentials:       return "Incorrect email or password"
+        case .unknown(let code):        return "Unexpected error (\(code))"
         }
     }
 }
@@ -106,7 +106,7 @@ class APIService {
                 if let d = json["detail"] as? String { throw APIError.serverError(d) }
                 if let arr = json["detail"] as? [[String: Any]] {
                     let msg = arr.compactMap { $0["msg"] as? String }.joined(separator: " ")
-                    throw APIError.serverError(msg.isEmpty ? "Hata oluştu" : msg)
+                    throw APIError.serverError(msg.isEmpty ? "An error occurred" : msg)
                 }
             }
             throw APIError.unknown(http.statusCode)
