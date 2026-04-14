@@ -107,12 +107,12 @@ struct WidgetSetupView: View {
     var step0_Congrats: some View {
         VStack(spacing: 24) {
             if isNewPairing {
-                Text("Bağlantı Kuruldu! 🎉")
+                Text("Connected! 🎉")
                     .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color(hex: "#2D1E5F"))
             }
 
-            Text("Widget'ın böyle süper görünecek!")
+            Text("Your widget will look this awesome!")
                 .font(.system(size: 18, weight: .black, design: .rounded))
                 .foregroundStyle(Color(hex: "#9D6BFF"))
                 .multilineTextAlignment(.center)
@@ -148,7 +148,7 @@ struct WidgetSetupView: View {
                                     }
                                 }
                             
-                            Text("Sürpriz!")
+                            Text("Surprise!")
                                 .font(.system(size: 20, weight: .heavy, design: .rounded))
                                 .foregroundStyle(Color(hex: "#9D6BFF"))
                         }
@@ -156,7 +156,7 @@ struct WidgetSetupView: View {
 
                     // Content Area
                     VStack(spacing: 12) {
-                        Text("Sürpriz kartın burada\nbelirecek")
+                        Text("Your surprise card\nwill appear here")
                             .font(.system(size: 18, weight: .heavy, design: .rounded))
                             .foregroundStyle(Color(hex: "#2D1E5F"))
                             .multilineTextAlignment(.center)
@@ -189,7 +189,7 @@ struct WidgetSetupView: View {
             .shadow(color: Color(hex: "#2D1E5F"), radius: 0, x: 4, y: 6)
             .padding(.horizontal, 8)
 
-            Text("Bu widget'ı hemen ana ekranına ekle\nve sürprizleri anında gör! 🚀")
+            Text("Add this widget to your home screen\nand see surprises instantly! 🚀")
                 .font(.system(size: 17, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color(hex: "#6A5E8E"))
                 .multilineTextAlignment(.center)
@@ -206,7 +206,7 @@ struct WidgetSetupView: View {
                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color(hex: "#2D1E5F"))
 
-            Text("Boş bir alana basılı tut,\niconlar titremeye başlasın")
+            Text("Long-press an empty area\nuntil icons start wiggling")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(hex: "#6A5E8E"))
                 .multilineTextAlignment(.center)
@@ -268,11 +268,11 @@ struct WidgetSetupView: View {
 
     var step2_SearchWidget: some View {
         VStack(spacing: 20) {
-            Text("Widget'ı Bul ve Ekle")
+            Text("Find and Add the Widget")
                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color(hex: "#2D1E5F"))
 
-            Text("Sol üstteki ➕ bas,\n\"Widgetapp\" ara ve ekle")
+            Text("Tap ➕ at top left,\nsearch \"Widgetapp\" and add")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(hex: "#6A5E8E"))
                 .multilineTextAlignment(.center)
@@ -323,7 +323,7 @@ struct WidgetSetupView: View {
                             Text("Widgetapp")
                                 .font(.system(size: 16, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color(hex: "#2D1E5F"))
-                            Text("Sürpriz Kart Widget")
+                            Text("Surprise Card Widget")
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(Color(hex: "#6A5E8E"))
                         }
@@ -356,7 +356,7 @@ struct WidgetSetupView: View {
                         VStack(spacing: 8) {
                             Text("✨")
                                 .font(.system(size: 28))
-                            Text("Sürpriz kartın bekleniyor...")
+                            Text("Waiting for a surprise card...")
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color(hex: "#6A5E8E"))
                         }
@@ -385,11 +385,11 @@ struct WidgetSetupView: View {
 
     var step3_ConfigureFriend: some View {
         VStack(spacing: 18) {
-            Text("Arkadaşını Seç")
+            Text("Select a Friend")
                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                 .foregroundStyle(Color(hex: "#2D1E5F"))
 
-            Text("Her widget farklı bir arkadaşa atanır.\nWidget'a uzun bas → **Widget'ı Düzenle**")
+            Text("Each widget is assigned to a different friend.\nLong-press the widget → **Edit Widget**")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(hex: "#6A5E8E"))
                 .multilineTextAlignment(.center)
@@ -442,7 +442,7 @@ struct WidgetSetupView: View {
                         HStack {
                             Image(systemName: "slider.horizontal.3")
                                 .foregroundStyle(Color(hex: "#2D1E5F"))
-                            Text("Widget'ı Düzenle")
+                            Text("Edit Widget")
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color(hex: "#2D1E5F"))
                             Spacer()
@@ -454,7 +454,7 @@ struct WidgetSetupView: View {
                         Divider()
 
                         HStack {
-                            Text("Arkadaş")
+                            Text("Friend")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .foregroundStyle(Color(hex: "#6A5E8E"))
                             Spacer()
@@ -497,11 +497,11 @@ struct WidgetSetupView: View {
                 .overlay(Circle().stroke(Color(hex: "#2D1E5F"), lineWidth: 4))
 
                 VStack(spacing: 8) {
-                    Text("Hazırsın!")
+                    Text("You are ready!")
                         .font(.system(size: 30, weight: .heavy, design: .rounded))
                         .foregroundStyle(Color(hex: "#2D1E5F"))
 
-                    Text("Widget verisi kaydedildi.\nŞimdi ana ekranına widget ekle\nve sürprizlerin tadını çıkar!")
+                    Text("Widget data saved.\nNow add the widget to your home screen\nand enjoy the surprises!")
                         .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundStyle(Color(hex: "#6A5E8E"))
                         .multilineTextAlignment(.center)
@@ -511,10 +511,10 @@ struct WidgetSetupView: View {
                 // Quick recap
                 VStack(alignment: .leading, spacing: 12) {
                     quickStep(num: "1", text: "Ana ekrana uzun bas")
-                    quickStep(num: "2", text: "Sol üst ➕ → \"Widgetapp\" ara")
-                    quickStep(num: "3", text: "Boyutu seç → Ekle")
-                    quickStep(num: "4", text: "Widget'a uzun bas → Düzenle")
-                    quickStep(num: "5", text: "Arkadaşını seç 💜")
+                    quickStep(num: "2", text: "Top left ➕ → search \"Widgetapp\"")
+                    quickStep(num: "3", text: "Choose size → Add")
+                    quickStep(num: "4", text: "Long-press widget → Edit")
+                    quickStep(num: "5", text: "Select your friend 💜")
                 }
                 .padding(20)
                 .background(Color.white)
@@ -649,10 +649,10 @@ struct WidgetSetupView: View {
     var buttonTitle: String {
         switch currentStep {
         case 0: return "Widget Kur →"
-        case 1: return "Anladım, Sonraki"
+        case 1: return "Got it, Next"
         case 2: return "Devam Et"
-        case 3: return "Kaydet & Bitir"
-        default: return "Tamamla"
+        case 3: return "Save & Done"
+        default: return "Done"
         }
     }
 

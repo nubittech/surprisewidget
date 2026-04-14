@@ -60,7 +60,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Uzay",
+        name: "Space",
         icon: "moon.stars.fill",
         items: [
             .image("stk_space_1"),
@@ -79,7 +79,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Kediler",
+        name: "Cats",
         icon: "pawprint.fill",
         items: [
             .image("stk_cat_cat"),
@@ -112,7 +112,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Yaz",
+        name: "Summer",
         icon: "sun.max.fill",
         items: [
             .image("stk_sum_sun"),
@@ -138,7 +138,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "🎂 Birthday",
+        name: "Birthday",
         icon: "gift.fill",
         items: [
             .image("stk_bday_happy"),
@@ -158,7 +158,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "💘 Love",
+        name: "Love",
         icon: "heart.fill",
         items: [
             .image("stk_love_heart"),
@@ -188,7 +188,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "🌿 Nature",
+        name: "Nature",
         icon: "leaf.fill",
         items: [
             .image("stk_nature_autumn"),
@@ -222,7 +222,7 @@ let STICKER_CATEGORIES: [StickerCategory] = [
         ]
     ),
     StickerCategory(
-        name: "Hayvanlar",
+        name: "Animals",
         icon: "hare.fill",
         items: [
             .image("stk_animal_angry"),

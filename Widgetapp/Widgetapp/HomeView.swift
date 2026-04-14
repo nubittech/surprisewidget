@@ -111,7 +111,7 @@ struct HomeView: View {
             }
             .navigationBarHidden(true)
             .alert("Bilgi", isPresented: $showAlert) {
-                Button("Tamam") {}
+                Button("OK") {}
             } message: { Text(alertMsg) }
             .sheet(isPresented: $showInviteCode) { inviteCodeSheet }
             .sheet(isPresented: $showPartnerProfile) { partnerProfileSheet }
@@ -276,7 +276,7 @@ struct HomeView: View {
                         .foregroundStyle(NB.muted)
                 }
                 Spacer()
-                Text("\(friends.count) kişi")
+                Text("\(friends.count) people")
                     .font(.system(size: 12, weight: .black, design: .rounded))
                     .foregroundStyle(NB.outline)
                     .padding(.horizontal, 18)
@@ -480,7 +480,7 @@ struct HomeView: View {
 
     func latestCardSection(_ card: Card) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Son Kart 💌")
+            Text("Latest Card 💌")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundStyle(NB.outline)
 
@@ -550,7 +550,7 @@ struct HomeView: View {
     var inviteCodeSheet: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("Davet Kodu")
+                Text("Invite Code")
                     .font(.system(size: 28, weight: .heavy, design: .rounded))
                     .foregroundStyle(NB.outline)
                 Text("Share this code with your friend:")
@@ -569,7 +569,7 @@ struct HomeView: View {
                         .neoBrutalism(radius: 20)
 
                     Button(action: { UIPasteboard.general.string = code }) {
-                        Label("Kopyala", systemImage: "doc.on.doc")
+                        Label("Copy", systemImage: "doc.on.doc")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(NB.white)
                             .frame(maxWidth: .infinity)
@@ -585,7 +585,7 @@ struct HomeView: View {
             .padding(24)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Kapat") { showInviteCode = false }
+                    Button("Close") { showInviteCode = false }
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
             }
@@ -598,7 +598,7 @@ struct HomeView: View {
 
     // MARK: - Partner Profile Sheet
 
-    private let relationships = ["My Love 💕", "My Bestie 🤝", "Bestiem ✨", "My Sibling 👫", "My Dear 💖"]
+    private let relationships = ["My Love 💕", "My Bestie 🤝", "My BFF ✨", "My Sibling 👫", "My Dear 💖"]
 
     var partnerProfileSheet: some View {
         NavigationStack {
@@ -608,7 +608,7 @@ struct HomeView: View {
                     Text("🎉 Connected!")
                         .font(.system(size: 28, weight: .heavy, design: .rounded))
                         .foregroundStyle(NB.outline)
-                    Text("\(widgetSetupPartnerName) için bir profil oluştur")
+                    Text("Set up a profile for \(widgetSetupPartnerName)")
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(NB.muted)
                 }

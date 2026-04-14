@@ -165,7 +165,7 @@ struct ProfileView: View {
             }
             .alert("Remove Friend", isPresented: $showUnpairAlert) {
                 Button("Cancel", role: .cancel) {}
-                Button("Sil", role: .destructive) {
+                Button("Remove", role: .destructive) {
                     if let f = unpairTarget { unpair(friend: f) }
                 }
             } message: {

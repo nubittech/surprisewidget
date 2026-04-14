@@ -305,7 +305,7 @@ struct CreateCardView: View {
                         Button(action: {
                             withAnimation(.spring(response: 0.3)) { showAlert = false }
                         }) {
-                            Text("Tamam")
+                            Text("OK")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
                                 .foregroundStyle(cPurpleBorder)
                                 .frame(maxWidth: .infinity)
@@ -582,11 +582,11 @@ struct CreateCardView: View {
                 .padding(20)
             }
             .background(cBg)
-            .navigationTitle("Kart Kime Gidecek?")
+            .navigationTitle("Who Gets the Card?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Kapat") { showFriendPicker = false }
+                    Button("Close") { showFriendPicker = false }
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
             }
@@ -608,7 +608,7 @@ struct CreateCardView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 22))
                             .foregroundStyle(selectedId != nil ? Color(hex: "#FB7185") : cTextMuted)
-                        Text("Sil")
+                        Text("Delete")
                             .font(.system(size: 11, weight: .heavy))
                             .foregroundStyle(selectedId != nil ? Color(hex: "#FB7185") : cTextMuted)
                     }

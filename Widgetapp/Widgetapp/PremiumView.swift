@@ -16,12 +16,12 @@ struct PremiumView: View {
     private let white  = Color.white
 
     private let features: [(String, String)] = [
-        ("infinity",            "Sınırsız kart gönder"),
-        ("person.3.fill",       "Sınırsız arkadaş ekle"),
-        ("paintbrush.pointed.fill", "Tüm arka planlar & sticker'lar"),
-        ("bell.badge.fill",     "Anlık bildirimler"),
-        ("star.fill",           "Öncelikli destek"),
-        ("lock.open.fill",      "Gelecekteki tüm özellikler"),
+        ("infinity",            "Send unlimited cards"),
+        ("person.3.fill",       "Add unlimited friends"),
+        ("paintbrush.pointed.fill", "All backgrounds & stickers"),
+        ("bell.badge.fill",     "Instant notifications"),
+        ("star.fill",           "Priority support"),
+        ("lock.open.fill",      "All future features"),
     ]
 
     var body: some View {
@@ -60,11 +60,11 @@ struct PremiumView: View {
 
                     // Title
                     VStack(spacing: 8) {
-                        Text("Premium'a Geç")
+                        Text("Go Premium")
                             .font(.system(size: 32, weight: .heavy, design: .rounded))
                             .foregroundStyle(navy)
 
-                        Text("Sürprizlerin sınırı olmasın!")
+                        Text("Unlimited surprises await!")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(purple)
                     }
@@ -111,7 +111,7 @@ struct PremiumView: View {
                     // Price card
                     VStack(spacing: 6) {
                         HStack(spacing: 8) {
-                            Text("ÖMÜRLİK")
+                            Text("LIFETIME")
                                 .font(.system(size: 11, weight: .black, design: .rounded))
                                 .tracking(2)
                                 .foregroundStyle(navy)
@@ -121,7 +121,7 @@ struct PremiumView: View {
                                 .clipShape(Capsule())
                                 .overlay(Capsule().stroke(navy, lineWidth: 2))
 
-                            Text("Tek seferlik ödeme")
+                            Text("One-time payment")
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .foregroundStyle(navy.opacity(0.6))
                         }
@@ -138,7 +138,7 @@ struct PremiumView: View {
                                 .foregroundStyle(navy)
                         }
 
-                        Text("Abonelik yok · Gizli ücret yok")
+                        Text("No subscription · No hidden fees")
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(navy.opacity(0.5))
                     }
@@ -160,7 +160,7 @@ struct PremiumView: View {
                             } else {
                                 Image(systemName: "lock.open.fill")
                                     .font(.system(size: 18, weight: .bold))
-                                Text("Tüm Özellikleri Aç · $5.99")
+                                Text("Unlock All Features · $5.99")
                                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                             }
                         }
@@ -176,7 +176,7 @@ struct PremiumView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
 
-                    Text("Ödeme App Store üzerinden gerçekleşir.")
+                    Text("Payment is processed through the App Store.")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(navy.opacity(0.4))
                         .multilineTextAlignment(.center)
@@ -192,15 +192,15 @@ struct PremiumView: View {
                     VStack(spacing: 20) {
                         Text("🎉")
                             .font(.system(size: 72))
-                        Text("Hoş Geldin Premium!")
+                        Text("Welcome to Premium!")
                             .font(.system(size: 26, weight: .heavy, design: .rounded))
                             .foregroundStyle(navy)
-                        Text("Artık sınırsız sürpriz\nyapabilirsin!")
+                        Text("Now you can send unlimited surprises!")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(navy.opacity(0.7))
                             .multilineTextAlignment(.center)
                         Button(action: { dismiss() }) {
-                            Text("Hadi Başlayalım! 🚀")
+                            Text("Let's Go! 🚀")
                                 .font(.system(size: 18, weight: .heavy, design: .rounded))
                                 .foregroundStyle(navy)
                                 .frame(maxWidth: .infinity)
