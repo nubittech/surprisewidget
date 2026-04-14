@@ -21,109 +21,144 @@ struct AuthView: View {
     
     var body: some View {
         ZStack {
-            // Background
             bgColor.ignoresSafeArea()
             DottedBackground(dotColor: Color(hex: "#E9D5FF"))
-            
+
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    
+
                     Spacer().frame(height: 40)
-                    
-                    // Logo
-                    SurpriseWidgetLogo()
-                        .padding(.bottom, 20)
-                    
-                    // Headers
-                    Text("Hoş Geldin!")
+
+                    // Logo with "HI THERE!" badge
+                    ZStack(alignment: .topTrailing) {
+                        SurpriseWidgetLogo()
+                        Text("HI THERE!")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundColor(darkStroke)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color(hex: "#FFB7C5"))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(darkStroke, lineWidth: 1.5))
+                            .rotationEffect(.degrees(8))
+                            .offset(x: 12, y: -8)
+                    }
+                    .padding(.bottom, 16)
+
+                    // Header
+                    Text("Welcome!")
                         .font(.system(size: 36, weight: .heavy, design: .rounded))
                         .foregroundStyle(textDark)
-                    
-                    Text("Yeni sürprizlere hazır mısın?")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(textDark.opacity(0.8))
+
+                    Text("Ready for your next Surprise Widget?")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(textDark.opacity(0.7))
+                        .multilineTextAlignment(.center)
                         .padding(.top, 4)
                         .padding(.bottom, 24)
-                    
+                        .padding(.horizontal, 32)
+
                     // Main Card
-                    VStack(spacing: 20) {
-                        
+                    VStack(spacing: 18) {
+
                         if !isLogin {
                             BrutalistTextField(
-                                label: "Adın Soyadın",
+                                label: "Full Name",
                                 icon: "person.fill",
-                                placeholder: "İsim Soyisim",
+                                placeholder: "Your Name",
                                 text: $name,
                                 strokeColor: darkStroke,
                                 inputBg: inputBgColor
                             )
                         }
-                        
+
                         BrutalistTextField(
-                            label: "E-posta",
+                            label: "Email",
                             icon: "envelope.fill",
-                            placeholder: "eposta@adresin.com",
+                            placeholder: "yourname@sparkle.com",
                             text: $email,
                             keyboardType: .emailAddress,
                             strokeColor: darkStroke,
                             inputBg: inputBgColor
                         )
-                        
-                        BrutalistTextField(
-                            label: "Şifre",
-                            icon: "lock.fill",
-                            placeholder: "••••••••",
-                            text: $password,
-                            isSecure: true,
-                            strokeColor: darkStroke,
-                            inputBg: inputBgColor
-                        )
-                        
+
+                        // Password field with inline Forgot? button
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 12, weight: .black))
+                                    Text("Password")
+                                        .font(.system(size: 14, weight: .black, design: .rounded))
+                                }
+                                .foregroundColor(darkStroke)
+                                .padding(.leading, 8)
+
+                                Spacer()
+
+                                if isLogin {
+                                    Button(action: { showForgotPassword = true }) {
+                                        Text("Forgot?")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(primaryPurple)
+                                    }
+                                }
+                            }
+
+                            SecureField("••••••••", text: $password)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(darkStroke)
+                                .padding(.horizontal, 20)
+                                .frame(height: 56)
+                                .background(inputBgColor)
+                                .clipShape(Capsule())
+                        }
+
                         if !errorMsg.isEmpty {
                             Text(errorMsg)
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(Color(hex: "#DC2626"))
                                 .multilineTextAlignment(.center)
                         }
-                        
+
                         // Submit Button
                         Button(action: handleSubmit) {
                             HStack {
                                 if loading {
                                     ProgressView().tint(.white)
                                 } else {
-                                    Text(isLogin ? "Girdi Yap!" : "Hadi Başlayalım!")
+                                    Text(isLogin ? "Let's Go!" : "Get Started!")
                                 }
                             }
                             .font(.system(size: 20, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 60)
-                            .background(primaryPurple) // Main vibrant purple
+                            .background(primaryPurple)
                             .clipShape(Capsule())
-                            // Button brutualist styling
                             .overlay(Capsule().stroke(darkStroke, lineWidth: 4))
                             .shadow(color: darkStroke, radius: 0, x: 0, y: 6)
                         }
                         .disabled(loading)
-                        .padding(.top, 10)
-                        
+                        .padding(.top, 6)
                     }
-                    .padding(32)
+                    .padding(28)
                     .background(Color.white)
-                    // Card brutualist styling
                     .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 40, style: .continuous).stroke(darkStroke, lineWidth: 5))
                     .shadow(color: darkStroke, radius: 0, x: 8, y: 10)
                     .padding(.horizontal, 24)
-                    
-                    Spacer(minLength: 40)
-                    
-                    // Apple Sign In
-                    VStack(spacing: 12) {
-                        HStack {
+
+                    Spacer(minLength: 24)
+
+                    // OR JOIN VIA divider + Apple button
+                    VStack(spacing: 14) {
+                        HStack(spacing: 10) {
                             Rectangle().frame(height: 1).foregroundColor(darkStroke.opacity(0.15))
-                            Text("VEYA").font(.system(size: 11, weight: .black)).foregroundColor(darkStroke.opacity(0.4))
+                            Text("OR JOIN VIA")
+                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                .foregroundColor(darkStroke.opacity(0.4))
+                                .fixedSize()
                             Rectangle().frame(height: 1).foregroundColor(darkStroke.opacity(0.15))
                         }
                         .padding(.horizontal, 24)
@@ -136,43 +171,32 @@ struct AuthView: View {
                                 handleAppleSignIn(result: result)
                             }
                         )
-                        .signInWithAppleButtonStyle(.black)
+                        .signInWithAppleButtonStyle(.white)
                         .frame(height: 56)
                         .clipShape(Capsule())
                         .overlay(Capsule().stroke(darkStroke, lineWidth: 3))
                         .shadow(color: darkStroke, radius: 0, x: 0, y: 5)
                         .padding(.horizontal, 24)
                     }
-                    .padding(.top, 8)
 
-                    // Forgot Password (only on login screen)
-                    if isLogin {
-                        Button(action: { showForgotPassword = true }) {
-                            Text("Şifremi unuttum")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(primaryPurple.opacity(0.8))
-                        }
-                        .padding(.top, 4)
-                    }
-
-                    // Toggle Text (Bottom)
+                    // Bottom toggle
                     Button(action: {
-                        withAnimation {
+                        withAnimation(.easeInOut(duration: 0.25)) {
                             isLogin.toggle()
                             errorMsg = ""
                         }
                     }) {
                         HStack(spacing: 4) {
-                            Text(isLogin ? "Hesabın yok mu?" : "Zaten hesabın var mı?")
+                            Text(isLogin ? "Don't have an account?" : "Already have an account?")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(textDark)
-
-                            Text(isLogin ? "Kayıt Ol!" : "Giriş Yap!")
-                                .font(.system(size: 16, weight: .black, design: .rounded))
+                            Text(isLogin ? "Sign Up Now!" : "Log In!")
+                                .font(.system(size: 15, weight: .black, design: .rounded))
                                 .foregroundColor(primaryPurple)
                         }
                     }
-                    .padding(.bottom, 30)
+                    .padding(.top, 20)
+                    .padding(.bottom, 36)
                 }
             }
         }
