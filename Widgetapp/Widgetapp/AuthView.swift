@@ -46,10 +46,15 @@ struct AuthView: View {
                     .padding(.bottom, 16)
 
                     // Header
-                    Text("Ready for a\nSurprise?")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
-                        .foregroundStyle(textDark)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 0) {
+                        Text("Ready for a")
+                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .foregroundStyle(textDark)
+                        Text("Surprise?")
+                            .font(.system(size: 36, weight: .heavy, design: .rounded))
+                            .foregroundStyle(primaryPurple)
+                    }
+                    .multilineTextAlignment(.center)
 
                     Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
@@ -100,8 +105,12 @@ struct AuthView: View {
                                 if isLogin {
                                     Button(action: { showForgotPassword = true }) {
                                         Text("Forgot?")
-                                            .font(.system(size: 13, weight: .bold))
+                                            .font(.system(size: 13, weight: .black, design: .rounded))
                                             .foregroundColor(primaryPurple)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 4)
+                                            .background(primaryPurple.opacity(0.1))
+                                            .clipShape(Capsule())
                                     }
                                 }
                             }
@@ -528,15 +537,6 @@ struct SurpriseWidgetLogo: View {
                 .frame(width: 120, height: 120)
             }
 
-            // ── Wordmark ─────────────────────────────────────────────────
-            HStack(spacing: 0) {
-                Text("Surprise")
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(purple)
-                Text(" Widget")
-                    .font(.system(size: 30, weight: .black, design: .rounded))
-                    .foregroundStyle(dark)
-            }
         }
     }
 }
