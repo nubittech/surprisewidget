@@ -46,11 +46,12 @@ struct AuthView: View {
                     .padding(.bottom, 16)
 
                     // Header
-                    Text("Welcome!")
+                    Text("Ready for a\nSurprise?")
                         .font(.system(size: 36, weight: .heavy, design: .rounded))
                         .foregroundStyle(textDark)
+                        .multilineTextAlignment(.center)
 
-                    Text("Ready for your next Surprise Widget?")
+                    Text("Create your secret vault and start sending\nmagical cards to your favorite people!")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(textDark.opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -537,7 +538,7 @@ struct SurpriseWidgetLogo: View {
                         .font(.system(size: 30, weight: .black, design: .rounded))
                         .foregroundStyle(purple)
                 }
-                Text("Sürprizini paylaş ✨")
+                Text("Share your surprise ✨")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(dark.opacity(0.5))
             }
