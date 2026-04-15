@@ -228,8 +228,9 @@ struct AuthView: View {
                 loading = false
             }
         case .failure(let error):
-            // User cancelled — don't show error
-            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+            // Silence cancel (1001) and unknown/dismiss (1000) — user just closed the sheet
+            let code = (error as NSError).code
+            if code != ASAuthorizationError.canceled.rawValue && code != ASAuthorizationError.unknown.rawValue {
                 errorMsg = error.localizedDescription
             }
         }
