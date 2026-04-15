@@ -10,7 +10,7 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.surprisecard.shared</string>
+		<string>group.com.nubittech.surprisewidget</string>
 	</array>
 </dict>
 </plist>

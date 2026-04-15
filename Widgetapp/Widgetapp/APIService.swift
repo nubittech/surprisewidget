@@ -36,7 +36,7 @@ class APIService {
     // App Group suite shared with widget extension so the widget can
     // authenticate against the backend and fetch the latest cards even
     // when the main app isn't running.
-    private static let appGroupId = "group.com.surprisecard.shared"
+    private static let appGroupId = "group.com.nubittech.surprisewidget"
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: APIService.appGroupId)
     }

@@ -10,7 +10,7 @@ struct WidgetFriend: Codable {
 
 class SharedDataManager {
     static let shared = SharedDataManager()
-    static let appGroupId = "group.com.surprisecard.shared"
+    static let appGroupId = "group.com.nubittech.surprisewidget"
     static let friendsKey = "friends_list"
     static let cardKeyPrefix = "card_"  // card_<pairId>
 

@@ -42,7 +42,7 @@ struct CardElement: Codable, Identifiable {
 
 // MARK: - App Group Access
 struct WidgetSharedData {
-    static let appGroupId = "group.com.surprisecard.shared"
+    static let appGroupId = "group.com.nubittech.surprisewidget"
     static let friendsKey = "friends_list"
     static let cardKeyPrefix = "card_"
     static let tokenKey = "auth_token"
@@ -330,7 +330,7 @@ struct EmptyCardView: View {
                     Text(name)
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                         .foregroundStyle(Color(hex: "#6B7280"))
-                    Text("Sürpriz bekleniyor…")
+                    Text("Waiting for a surprise…")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(Color(hex: "#9CA3AF"))
                 } else {
@@ -459,7 +459,7 @@ struct SurpriseCardWidget: Widget {
         AppIntentConfiguration(kind: kind, intent: SelectFriendIntent.self, provider: CardTimelineProvider()) { entry in
             SurpriseCardWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Sürpriz Kart")
+        .configurationDisplayName("Surprise Widget")
         .description("Arkadaşından gelen sürpriz kartı göster")
         .supportedFamilies([.systemLarge, .systemMedium, .systemSmall])
     }
