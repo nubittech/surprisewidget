@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AABB000D2F86F1C0003D075D /* SurpriseCardWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AABB00012F86F1C0003D075D /* SurpriseCardWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA00RC022F900000001523EC /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = AA00RC012F900000001523EC /* RevenueCat */; };
+		AABB000D2F86F1C0003D075D /* SurpriseCardWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AABB00012F86F1C0003D075D /* SurpriseCardWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,12 +43,12 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0182714C2F86F1C0003D075D /* Widgetapp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Widgetapp;
+			path = Surprisewidget;
 			sourceTree = "<group>";
 		};
 		AABB00022F86F1C0003D075D /* SurpriseCardWidgetExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = SurpriseCardWidgetExtension;
+			path = Surprisecardwidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -343,10 +343,9 @@
 		018271562F86F1C0003D075D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Widgetapp/Widgetapp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Surprisewidget/Widgetapp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GHWW9UP94F;
@@ -380,10 +379,9 @@
 		018271572F86F1C0003D075D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Widgetapp/Widgetapp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Surprisewidget/Widgetapp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GHWW9UP94F;
@@ -419,7 +417,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = SurpriseCardWidgetExtension/SurpriseCardWidgetExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Surprisecardwidget/SurpriseCardWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -453,7 +451,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
-				CODE_SIGN_ENTITLEMENTS = SurpriseCardWidgetExtension/SurpriseCardWidgetExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Surprisecardwidget/SurpriseCardWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
