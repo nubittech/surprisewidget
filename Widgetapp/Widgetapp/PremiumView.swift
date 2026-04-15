@@ -3,7 +3,7 @@ import StoreKit
 
 struct PremiumView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var store = StoreKitManager.shared
+    private let store = StoreKitManager.shared
     @State private var showSuccess = false
     @State private var showError = false
 
@@ -28,7 +28,7 @@ struct PremiumView: View {
 
     // Formatted price from StoreKit, fallback to $5.99
     var priceString: String {
-        store.product?.displayPrice ?? "$5.99"
+        store.priceString
     }
 
     var body: some View {
@@ -240,11 +240,11 @@ struct PremiumView: View {
         }
         .animation(.spring(response: 0.4), value: showSuccess)
         .alert("Purchase Failed", isPresented: $showError) {
-            Button("OK") { store.errorMessage = nil }
+            Button("OK") { store.clearError() }
         } message: {
             Text(store.errorMessage ?? "An error occurred.")
         }
-        .task { await store.loadProducts() }
+        .task { await store.fetchOfferings() }
     }
 }
 

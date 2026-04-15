@@ -87,6 +87,12 @@ class StoreKitManager {
         }
     }
 
+    // MARK: - Clear Error
+
+    func clearError() {
+        errorMessage = nil
+    }
+
     // MARK: - Check Entitlement
 
     func updatePurchasedStatus() async {
