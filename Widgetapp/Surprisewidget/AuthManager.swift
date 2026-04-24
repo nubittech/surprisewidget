@@ -15,6 +15,10 @@ class AuthManager {
         }
         do {
             user = try await APIService.shared.get("/auth/me")
+            // We already had a session — make sure the APNs token on record
+            // at the backend is current (device-token rotation, new install
+            // restoring a previous login, etc).
+            PushNotificationManager.shared.registerPendingTokenIfNeeded()
         } catch {
             APIService.shared.token = nil
             user = nil
@@ -28,6 +32,11 @@ class AuthManager {
             "/auth/login", body: Body(email: email, password: password))
         APIService.shared.token = resp.access_token
         user = resp.user
+        PushNotificationManager.shared.registerPendingTokenIfNeeded()
+        // Mirror any existing RevenueCat entitlement to the backend for this
+        // session — keeps server-side premium gates in sync after a fresh
+        // login on a device that already owns the lifetime unlock.
+        Task { await StoreKitManager.shared.syncEntitlementWithBackend() }
     }
 
     func register(email: String, password: String, name: String) async throws {
@@ -36,6 +45,11 @@ class AuthManager {
             "/auth/register", body: Body(email: email, password: password, name: name))
         APIService.shared.token = resp.access_token
         user = resp.user
+        PushNotificationManager.shared.registerPendingTokenIfNeeded()
+        // Mirror any existing RevenueCat entitlement to the backend for this
+        // session — keeps server-side premium gates in sync after a fresh
+        // login on a device that already owns the lifetime unlock.
+        Task { await StoreKitManager.shared.syncEntitlementWithBackend() }
     }
 
     func refreshUser() async {
@@ -72,6 +86,11 @@ class AuthManager {
         )
         APIService.shared.token = resp.access_token
         user = resp.user
+        PushNotificationManager.shared.registerPendingTokenIfNeeded()
+        // Mirror any existing RevenueCat entitlement to the backend for this
+        // session — keeps server-side premium gates in sync after a fresh
+        // login on a device that already owns the lifetime unlock.
+        Task { await StoreKitManager.shared.syncEntitlementWithBackend() }
     }
 
     func logout() {

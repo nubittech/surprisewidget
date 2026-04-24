@@ -28,6 +28,10 @@ struct StickerCategory: Identifiable, Hashable, Sendable {
     let icon: String          // Emoji used as category tab icon
     let items: [StickerItem]
 
+    /// Only the "Essentials" category is free. Every other named category is
+    /// premium and must be unlocked via IAP before its stickers can be used.
+    var isPremium: Bool { name != "Essentials" }
+
     // Backwards-compat: old emoji-only categories
     init(name: String, icon: String, stickers: [String]) {
         self.name = name
@@ -43,6 +47,82 @@ struct StickerCategory: Identifiable, Hashable, Sendable {
 }
 
 let STICKER_CATEGORIES: [StickerCategory] = [
+    StickerCategory(
+        name: "Essentials",
+        icon: "star.fill",
+        items: [
+            .image("stk_temel_1"),
+            .image("stk_temel_2"),
+            .image("stk_temel_4"),
+            .image("stk_temel_5"),
+            .image("stk_temel_7"),
+            .image("stk_temel_8"),
+            .image("stk_temel_9"),
+            .image("stk_temel_10"),
+            .image("stk_temel_11"),
+            .image("stk_temel_12"),
+            .image("stk_temel_13"),
+            .image("stk_temel_14"),
+            .image("stk_temel_15"),
+            .image("stk_temel_16"),
+            .image("stk_temel_17"),
+            .image("stk_temel_18"),
+            .image("stk_temel_19"),
+            .image("stk_temel_20"),
+            .image("stk_temel_21"),
+            .image("stk_temel_29"),
+            .image("stk_temel_30"),
+            .image("stk_temel_31"),
+            .image("stk_temel_32"),
+            .image("stk_temel_33"),
+            .image("stk_temel_34"),
+            .image("stk_temel_35"),
+            .image("stk_temel_36"),
+            .image("stk_temel_37"),
+            .image("stk_temel_38"),
+            .image("stk_temel_39"),
+            .image("stk_temel_40"),
+            .image("stk_temel_41"),
+            .image("stk_temel_42"),
+            .image("stk_temel_43"),
+            .image("stk_temel_44"),
+            .image("stk_temel_46"),
+            .image("stk_temel_47"),
+            .image("stk_temel_48"),
+            .image("stk_temel_49"),
+            .image("stk_temel_50"),
+            .image("stk_temel_51"),
+            .image("stk_temel_52"),
+            .image("stk_temel_53"),
+            .image("stk_temel_54"),
+            .image("stk_temel_55"),
+            .image("stk_temel_56"),
+            .image("stk_temel_57"),
+            .image("stk_temel_58"),
+            .image("stk_temel_59"),
+            .image("stk_temel_60"),
+            .image("stk_temel_61"),
+            .image("stk_temel_62"),
+            .image("stk_temel_63"),
+            .image("stk_temel_64"),
+            .image("stk_temel_66"),
+            .image("stk_temel_67"),
+            .image("stk_temel_68"),
+            .image("stk_temel_awesome"),
+            .image("stk_temel_be-mine"),
+            .image("stk_temel_break-up"),
+            .image("stk_temel_cocktail"),
+            .image("stk_temel_coffee"),
+            .image("stk_temel_dripper"),
+            .image("stk_temel_gold-star"),
+            .image("stk_temel_love-letter"),
+            .image("stk_temel_love-letter-1"),
+            .image("stk_temel_love"),
+            .image("stk_temel_star"),
+            .image("stk_temel_weather"),
+            .image("stk_temel_wedding-rings"),
+        ]
+    ),
     StickerCategory(
         name: "Layer",
         icon: "paintpalette.fill",

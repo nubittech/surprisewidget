@@ -5,6 +5,7 @@ enum APIError: LocalizedError {
     case serverError(String)
     case unauthorized           // token expired → force logout
     case invalidCredentials     // wrong email/password → show on login
+    case paymentRequired(String) // 402 → free-tier limit hit, trigger paywall
     case unknown(Int)
 
     var errorDescription: String? {
@@ -13,6 +14,7 @@ enum APIError: LocalizedError {
         case .serverError(let m):       return m
         case .unauthorized:             return "Session expired, please log in again"
         case .invalidCredentials:       return "Incorrect email or password"
+        case .paymentRequired(let m):   return m
         case .unknown(let code):        return "Unexpected error (\(code))"
         }
     }
@@ -99,6 +101,15 @@ class APIService {
                 throw APIError.invalidCredentials
             }
             throw APIError.unauthorized
+        }
+
+        // 402 Payment Required → free-tier limit hit. Throw a dedicated error
+        // so each call site can decide how to react (custom toast vs paywall).
+        if http.statusCode == 402 {
+            var msg = "This is a Premium feature."
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let d = json["detail"] as? String { msg = d }
+            throw APIError.paymentRequired(msg)
         }
 
         guard (200...299).contains(http.statusCode) else {

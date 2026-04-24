@@ -4,6 +4,9 @@ struct ContentView: View {
     @Environment(AuthManager.self) private var auth
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasAskedNotificationPermission") private var hasAskedPermission = false
+    // Bridge the singleton into SwiftUI's dependency tracking so the sheet
+    // binding updates when `isPresenting` flips from anywhere in the app.
+    @Bindable private var paywall = PaywallPresenter.shared
 
     var body: some View {
         Group {
@@ -28,7 +31,22 @@ struct ContentView: View {
                 AuthView()
             }
         }
-        .task { await auth.initialize() }
+        .task {
+            await auth.initialize()
+            // Once we know we're authenticated, mirror the current RevenueCat
+            // entitlement to the backend so server-side gates are accurate.
+            if auth.isAuthenticated {
+                await StoreKitManager.shared.syncEntitlementWithBackend()
+                await auth.refreshUser()
+            }
+        }
+        .sheet(
+            isPresented: $paywall.isPresenting,
+            onDismiss: { paywall.handleDismiss() }
+        ) {
+            PremiumView()
+        }
+        .preferredColorScheme(.light)
     }
 }
 
@@ -70,16 +88,16 @@ struct MainTabView: View {
             
             // Custom Floating Tab Bar
             HStack(spacing: 0) {
-                tabButton(title: "Home", icon: selectedTab == 0 ? "house.fill" : "house", isSelected: selectedTab == 0) { 
-                    selectedTab = 0 
+                tabButton(title: "Home", icon: selectedTab == 0 ? "house.fill" : "house", isSelected: selectedTab == 0) {
+                    selectedTab = 0
                 }
                 Spacer()
-                centerTabButton(title: "Create Card", icon: "plus", isSelected: false) { 
+                centerTabButton(title: "Create Card", icon: "plus", isSelected: false) {
                     showCreateCard = true
                 }
                 Spacer()
-                centerTabButton(title: "Profile", icon: "person.fill", isSelected: selectedTab == 2, circleColor: Color(hex: "#FFD666")) { 
-                    selectedTab = 2 
+                centerTabButton(title: "Profile", icon: "person.fill", isSelected: selectedTab == 2, circleColor: Color(hex: "#FFD666")) {
+                    selectedTab = 2
                 }
             }
             .padding(.horizontal, 20)
@@ -88,6 +106,7 @@ struct MainTabView: View {
             .clipShape(Capsule())
             .overlay(Capsule().stroke(Color(hex: "#2D1E5F"), lineWidth: 4))
             .shadow(color: Color(hex: "#2D1E5F"), radius: 0, x: 4, y: 4)
+            .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? 420 : .infinity)
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
         }

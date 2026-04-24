@@ -65,7 +65,7 @@ struct HomeView: View {
     @State private var alertMsg = ""
     @State private var showAlert = false
     @State private var showInviteCode = false
-    @State private var isFloating = false
+    @State private var floatOffset: CGFloat = 10
     @State private var showWidgetSetup = false
     @State private var widgetSetupPartnerName = ""
     @State private var widgetSetupIsNewPairing = false
@@ -75,8 +75,104 @@ struct HomeView: View {
     @State private var generatedInviteCode: String? = nil
     @State private var isGeneratingCode = false
     @State private var showPremium = false
+    @State private var showCreateCard = false
+    @State private var selectedFriendForCard: Friend? = nil
+    @FocusState private var inviteFieldFocused: Bool
+
+    // MARK: - First-Friend Tutorial state
+    //
+    // NO device-level flag. Tutorial is purely driven by whether the user has
+    // any friends: friends.isEmpty == true → run tutorial. As soon as the
+    // first friend is added (acceptInvite succeeds) the user enters the
+    // congrats → createWidget path, and after that friends is non-empty so
+    // the tutorial never triggers again from loadData(). This is:
+    //   • stateless (no AppStorage to get out of sync)
+    //   • per-account by construction (different user = different friends list)
+    //   • reinstall-safe
+    @State private var tutorialStep: TutorialStep = .inactive
+    @State private var showTutorialCongrats = false
+    @State private var tutorialNewPartnerName = "Friend"
+
+    // MARK: - Relationship Picker (post-add intermezzo)
+    //
+    // After acceptInvite succeeds we present an intermediate screen where the
+    // user gets to set a nickname (shown on the widget) and pick a
+    // relationship label. Once that's done we continue to the tutorial
+    // congrats screen OR straight to widget setup, exactly like before.
+    @State private var showRelationshipPicker = false
+    @State private var pickerPairId: String = ""
+    @State private var pickerPartnerName: String = "Friend"
 
     var partnerName: String? { friends.first?.displayName }
+
+    // MARK: - Tutorial helpers
+
+    @ViewBuilder
+    private var currentTutorialBubble: some View {
+        switch tutorialStep {
+        case .addFriend:
+            CoachBubble(
+                title: "Add your first friend",
+                message: "Tap the highlighted 'Add New' card below to create your personal invite code.",
+                onSkip: { finishTutorial() }
+            )
+        case .pasteCode:
+            CoachBubble(
+                title: "Paste the code",
+                message: "Paste the code you just copied into the 'Secret Code' field, then tap 'Paste Magic Code'.",
+                onSkip: { finishTutorial() }
+            )
+        case .createWidget:
+            CoachBubble(
+                title: "One last step",
+                message: "Tap the Widget button under your own card. We'll walk you through placing it on your home screen.",
+                onSkip: { finishTutorial() }
+            )
+        default:
+            EmptyView()
+        }
+    }
+
+    /// Scrolls the matching section into view so the user clearly sees the
+    /// highlighted target. Uses anchor `.center` to keep target in the middle
+    /// of the viewport, independent of screen size.
+    private func scrollToTutorialTarget(_ step: TutorialStep, proxy: ScrollViewProxy) {
+        let targetId: String?
+        switch step {
+        case .addFriend, .createWidget:
+            targetId = "tutorial_circle"
+        case .pasteCode:
+            targetId = "tutorial_invite"
+        default:
+            targetId = nil
+        }
+        if let id = targetId {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                proxy.scrollTo(id, anchor: .center)
+            }
+        }
+    }
+
+    private func finishTutorial() {
+        tutorialStep = .done
+        showTutorialCongrats = false
+    }
+
+    /// Called from loadData() once data is known. Decides whether to start
+    /// (or resume) the tutorial. Purely driven by friends list state.
+    private func maybeStartTutorial() {
+        // Tutorial zaten ortasındaysa (copyCode, pasteCode, createWidget),
+        // loadData'nın tekrar çağrılması (acceptInvite sonrası) durumu
+        // sıfırlamasın.
+        if tutorialStep.isActive { return }
+        // Done olduktan sonra aynı oturumda tekrar başlatma.
+        if tutorialStep == .done { return }
+        // Kullanıcının circle'ı boşsa → tutorial'ı başlat.
+        if friends.isEmpty {
+            tutorialStep = .addFriend
+        }
+        // Aksi halde (friends zaten varsa) sessizce kal — tutorial gösterme.
+    }
 
     var body: some View {
         NavigationStack {
@@ -86,27 +182,44 @@ struct HomeView: View {
                 if loading {
                     ProgressView().tint(NB.primary)
                 } else {
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 28) {
-                            heroCard
-                            circleSection
-                            inviteSection
-                            if let card = latestCard {
-                                latestCardSection(card)
+                    ScrollViewReader { proxy in
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 28) {
+                                heroCard
+                                circleSection
+                                    .id("tutorial_circle")
+                                    .zIndex(0)
+                                inviteSection
+                                    .id("tutorial_invite")
+                                    .zIndex(1) // friend card shadow/rotate hit-test'lerinin üstünde kalsın
+                                if let card = latestCard {
+                                    latestCardSection(card)
+                                }
+                                dailySection
                             }
-                            dailySection
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
-                        .padding(.bottom, 120)
-                    }
-                    .safeAreaInset(edge: .top) {
-                        headerPill
                             .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
-                            .background(NB.bg)
+                            .padding(.top, 10)
+                            .padding(.bottom, 120)
+                        }
+                        .safeAreaInset(edge: .top) {
+                            headerPill
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
+                                .background(NB.bg)
+                        }
+                        .refreshable { await loadData() }
+                        .onChange(of: tutorialStep) { _, newStep in
+                            scrollToTutorialTarget(newStep, proxy: proxy)
+                        }
+                        .onAppear {
+                            // İlk açılışta tutorial aktifse hedefe scroll et.
+                            if tutorialStep.isActive {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                    scrollToTutorialTarget(tutorialStep, proxy: proxy)
+                                }
+                            }
+                        }
                     }
-                    .refreshable { await loadData() }
                 }
             }
             .navigationBarHidden(true)
@@ -122,11 +235,51 @@ struct HomeView: View {
                 )
                 .environment(auth)
             }
+            .fullScreenCover(isPresented: $showCreateCard) {
+                CreateCardView()
+                    .environment(auth)
+            }
+            .fullScreenCover(item: $selectedFriendForCard) { friend in
+                CreateCardWrapperView(preselectedFriend: friend)
+                    .environment(auth)
+            }
+            .fullScreenCover(isPresented: $showRelationshipPicker) {
+                RelationshipPickerView(
+                    partnerName: pickerPartnerName,
+                    pairId: pickerPairId,
+                    onComplete: handleRelationshipPickerComplete
+                )
+                .environment(auth)
+            }
+            // Tutorial coach bubble — her adım için tek balon, ekranın altında
+            // yüzer. ZStack'in dışında olduğu için keyboard/scroll içeriğinden
+            // etkilenmez.
+            // Bubble ekranın en ÜSTÜNDE sabit duruyor; tıklanacak hedefin
+            // üzerini kapatmıyor. Header pill'in hemen altında konumlanır.
+            .overlay(alignment: .top) {
+                currentTutorialBubble
+                    .padding(.horizontal, 16)
+                    .padding(.top, 80) // headerPill'in altına otursun
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            // Tebrik kartı (Adım 3 → 4 arası)
+            .overlay {
+                if showTutorialCongrats {
+                    TutorialCongratsCard(partnerName: tutorialNewPartnerName) {
+                        showTutorialCongrats = false
+                        tutorialStep = .createWidget
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: tutorialStep)
+            .animation(.easeInOut(duration: 0.25), value: showTutorialCongrats)
         }
         .task { await loadData() }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isFloating = true
+                withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                    floatOffset = -4
+                }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -182,7 +335,7 @@ struct HomeView: View {
         .padding(.vertical, 8)
         .background(NB.white)
         .neoBrutalismSm(radius: 999)
-        .sheet(isPresented: $showPremium) {
+        .fullScreenCover(isPresented: $showPremium) {
             PremiumView()
         }
     }
@@ -221,7 +374,7 @@ struct HomeView: View {
                     .lineSpacing(4)
                     .padding(.bottom, 20)
 
-                NavigationLink(destination: CreateCardWrapperView()) {
+                Button(action: { showCreateCard = true }) {
                     HStack(spacing: 8) {
                         Text("Let's Go!")
                             .font(.system(size: 20, weight: .heavy, design: .rounded))
@@ -255,8 +408,7 @@ struct HomeView: View {
                 .overlay(MascotFace().frame(width: 52, height: 52))
                 .overlay(Circle().stroke(NB.outline, lineWidth: NB.borderW))
                 .shadow(color: NB.outline, radius: 0, x: 3, y: 3)
-                .offset(x: 12, y: isFloating ? -2 : 12)
-                .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: isFloating)
+                .offset(x: 12, y: floatOffset)
                 .zIndex(1)
         }
         .rotationEffect(.degrees(-1))
@@ -288,7 +440,10 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 18) {
                     // Add New
-                    Button(action: { showInviteCode = true }) {
+                    Button(action: {
+                        showInviteCode = true
+                        if tutorialStep == .addFriend { tutorialStep = .copyCode }
+                    }) {
                         VStack(spacing: 12) {
                             Circle()
                                 .fill(NB.primaryBox)
@@ -299,6 +454,10 @@ struct HomeView: View {
                                         .foregroundStyle(NB.outline)
                                 )
                                 .overlay(Circle().stroke(NB.outline, lineWidth: NB.borderSm))
+                                // Dalga halkasını iç circle etrafında çalıştırıyoruz.
+                                // Dış kartın etrafında yapsak, yatay ScrollView'ın
+                                // .clipped() sınırı halkaları kesiyordu.
+                                .tutorialWave(active: tutorialStep == .addFriend, shape: .circle)
                             Text("Add New")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .foregroundStyle(NB.outline)
@@ -343,20 +502,30 @@ struct HomeView: View {
                 .padding(.leading, 4)
                 .padding(.top, 4)
             }
+            // Sabit yükseklik zorunlu — yükseklik sabitlenemazsa yatay ScrollView
+            // dikey ScrollView içinde sınırsız büyür ve altındaki inviteSection'ın
+            // tüm dokunma olaylarını sessizce yutar. `.clipped()` yalnızca
+            // görsel olarak kırpıyor; hit-test alanını da daraltmak için
+            // `.contentShape(Rectangle())` ekliyoruz, aksi halde rotasyonlu
+            // friendCard'ların shadow/offset'leri alttaki bölümün dokunuşlarını
+            // yutmaya devam ediyor.
+            .frame(height: 200)
+            .clipped()
+            .contentShape(Rectangle())
         }
     }
 
     func friendCard(friend: Friend, tilt: Double) -> some View {
         VStack(spacing: 0) {
-            // Tapping the avatar / name opens CreateCardView with this friend preselected
-            NavigationLink(destination: CreateCardWrapperView(preselectedFriend: friend)) {
+            // Tapping the avatar / name opens CreateCardView as fullScreenCover
+            Button(action: { selectedFriendForCard = friend }) {
                 VStack(spacing: 8) {
                     ZStack(alignment: .bottomTrailing) {
                         Circle()
                             .fill(NB.secondaryBox)
                             .frame(width: 56, height: 56)
                             .overlay(
-                                Text(String(friend.partner_name.prefix(1)).uppercased())
+                                Text(String(friend.displayName.prefix(1)).uppercased())
                                     .font(.system(size: 22, weight: .bold, design: .rounded))
                                     .foregroundStyle(NB.outline)
                             )
@@ -389,6 +558,12 @@ struct HomeView: View {
                 widgetSetupPartnerName = friend.displayName
                 widgetSetupIsNewPairing = false
                 showWidgetSetup = true
+                if tutorialStep == .createWidget {
+                    // Tutorial tamamlandı. friends.isEmpty == false olduğu için
+                    // bir sonraki loadData'da maybeStartTutorial tekrar
+                    // başlatmayacak.
+                    tutorialStep = .done
+                }
             }) {
                 HStack(spacing: 4) {
                     Image(systemName: "plus.square.fill")
@@ -403,6 +578,7 @@ struct HomeView: View {
                 .clipShape(Capsule())
                 .overlay(Capsule().stroke(NB.outline, lineWidth: 2))
             }
+            .tutorialWave(active: tutorialStep == .createWidget, shape: .capsule)
         }
         .padding(.vertical, 14)
         .frame(width: 120, height: 170)
@@ -422,7 +598,7 @@ struct HomeView: View {
                     Text("Secret Code?")
                         .font(.system(size: 26, weight: .heavy, design: .rounded))
                         .foregroundStyle(NB.outline)
-                    Text("Unlock new friends! 🗝️")
+                    Text("Unlock new friends!")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(NB.muted)
                 }
@@ -438,20 +614,40 @@ struct HomeView: View {
                     .rotationEffect(.degrees(3))
             }
 
-            // Input
-            HStack(spacing: 12) {
-                Image(systemName: "key.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(NB.outline)
-                TextField("Enter code here...", text: $inviteInput)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.characters)
+            // Input — ZStack yapısı: arka planda tap-to-focus yakalayan bir
+            // katman, önde TextField'ın kendisi. Parent HStack'e onTapGesture
+            // koymak TextField'ın kendi odaklanma tap'ini sistematik biçimde
+            // yutuyordu (özellikle klavye açılırken ikinci tap'lerde); bu
+            // yüzden tap-hedefi yalnızca TextField'ın ARKASINDA, icon/boşluk
+            // bölgesinde çalışıyor.
+            ZStack {
+                // Background tap-catcher: focuses the field when user taps the
+                // icon or empty whitespace area of the pill. Placed BEHIND the
+                // TextField so it never steals the field's own taps.
+                Rectangle()
+                    .fill(NB.white)
+                    .contentShape(Rectangle())
+                    .onTapGesture { inviteFieldFocused = true }
+
+                HStack(spacing: 12) {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(NB.outline)
+                        .allowsHitTesting(false)
+                    TextField("Enter code here...", text: $inviteInput)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                        .focused($inviteFieldFocused)
+                        .submitLabel(.go)
+                        .onSubmit(acceptInvite)
+                }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(NB.white)
+            .frame(maxWidth: .infinity)
             .neoBrutalism(radius: NB.radius, border: NB.borderW, shadow: 0)
+            .tutorialWave(active: tutorialStep == .pasteCode, shape: .roundedRect(NB.radius))
 
             // Button
             Button(action: acceptInvite) {
@@ -484,7 +680,12 @@ struct HomeView: View {
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundStyle(NB.outline)
 
-            CardPreviewView(card: card)
+            // Look up the recipient's custom nickname for this card's sender
+            // so the preview matches what the widget will actually render.
+            CardPreviewView(
+                card: card,
+                displayName: friends.first { $0.pair_id == card.pair_id }?.displayName
+            )
                 .frame(height: 200)
                 .neoBrutalism(radius: 20)
         }
@@ -549,40 +750,67 @@ struct HomeView: View {
 
     var inviteCodeSheet: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Text("Invite Code")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .foregroundStyle(NB.outline)
-                Text("Share this code with your friend:")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundStyle(NB.muted)
+            ZStack(alignment: .bottom) {
+                VStack(spacing: 24) {
+                    Text("Invite Code")
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .foregroundStyle(NB.outline)
+                    Text("Share this code with your friend:")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundStyle(NB.muted)
 
-                if isGeneratingCode {
-                    ProgressView().tint(NB.primary)
-                } else if let code = generatedInviteCode ?? pairStatus?.invite_code {
-                    Text(code)
-                        .font(.system(size: 36, weight: .black, design: .monospaced))
-                        .foregroundStyle(NB.primary)
-                        .padding(24)
-                        .frame(maxWidth: .infinity)
-                        .background(NB.primaryBox.opacity(0.4))
-                        .neoBrutalism(radius: 20)
-
-                    Button(action: { UIPasteboard.general.string = code }) {
-                        Label("Copy", systemImage: "doc.on.doc")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(NB.white)
+                    if isGeneratingCode {
+                        ProgressView().tint(NB.primary)
+                    } else if let code = generatedInviteCode ?? pairStatus?.invite_code {
+                        Text(code)
+                            .font(.system(size: 36, weight: .black, design: .monospaced))
+                            .foregroundStyle(NB.primary)
+                            .padding(24)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(NB.primary)
-                            .neoBrutalism(radius: 999)
+                            .background(NB.primaryBox.opacity(0.4))
+                            .neoBrutalism(radius: 20)
+
+                        Button(action: {
+                            UIPasteboard.general.string = code
+                            // Tutorial: auto-close sheet 0.8s after copy
+                            if tutorialStep == .copyCode {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                    showInviteCode = false
+                                }
+                            }
+                        }) {
+                            Label("Copy", systemImage: "doc.on.doc")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(NB.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(NB.primary)
+                                .neoBrutalism(radius: 999)
+                        }
+                        .tutorialWave(active: tutorialStep == .copyCode, shape: .capsule)
+                    } else {
+                        ProgressView().tint(NB.primary)
                     }
-                } else {
-                    ProgressView().tint(NB.primary)
+                    Spacer()
                 }
-                Spacer()
+                .padding(24)
+
+                // Tutorial bubble yalnızca sheet içinde görünmeli (parent overlay
+                // sheet'in altında kalıyor). Bu yüzden sheet'in kendi ZStack'ine
+                // konuşma balonunu burada embed ediyoruz.
             }
-            .padding(24)
+            .overlay(alignment: .top) {
+                // Sheet içi coach bubble — ekranın üstünde sabit durur.
+                if tutorialStep == .copyCode {
+                    CoachBubble(
+                        title: "Copy the code",
+                        message: "Tap 'Copy'. The screen will close automatically so you can paste it into the Secret Code field.",
+                        onSkip: { finishTutorial() }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { showInviteCode = false }
@@ -593,6 +821,10 @@ struct HomeView: View {
         .presentationDetents([.medium])
         .onAppear {
             generateInviteCode()
+        }
+        .onDisappear {
+            // Sheet kapandığında tutorial'ı bir sonraki adıma ilerlet.
+            if tutorialStep == .copyCode { tutorialStep = .pasteCode }
         }
     }
 
@@ -693,7 +925,23 @@ struct HomeView: View {
             async let limitsTask: LimitsStatus = APIService.shared.get("/limits/status")
             let (status, lims) = try await (statusTask, limitsTask)
             pairStatus = status
-            friends = status.friends ?? []
+            // Overlay any locally-cached nicknames/relationships so the UI
+            // remains consistent with what the user last typed, even if the
+            // backend hasn't echoed it back yet (network lag, endpoint
+            // rollout, etc). Backend values still win if present.
+            friends = (status.friends ?? []).map { f in
+                let nickname = f.partner_nickname ?? LocalNicknameCache.nickname(forPairId: f.pair_id)
+                let relationship = f.relationship ?? LocalNicknameCache.relationship(forPairId: f.pair_id)
+                guard nickname != f.partner_nickname || relationship != f.relationship else { return f }
+                return Friend(
+                    pair_id: f.pair_id,
+                    partner_id: f.partner_id,
+                    partner_name: f.partner_name,
+                    partner_nickname: nickname,
+                    relationship: relationship,
+                    status: f.status
+                )
+            }
             limits = lims
             // Save friends to App Group for widget
             SharedDataManager.shared.saveFriends(friends)
@@ -721,6 +969,54 @@ struct HomeView: View {
             }
         } catch {}
         loading = false
+        maybeStartTutorial()
+    }
+
+    private func handleRelationshipPickerComplete(_ nickname: String?, _ relationship: String?) {
+        showRelationshipPicker = false
+        let trimmedNickname = nickname?.trimmingCharacters(in: .whitespaces)
+        let typedNickname: String? = (trimmedNickname?.isEmpty == false) ? trimmedNickname : nil
+        let capturedPairId = pickerPairId
+
+        Task {
+            // Pull the latest friends list so the backend-persisted nickname
+            // lands in memory. We still patch locally below as a safety net in
+            // case the /pairs/update-label write hasn't propagated yet (or
+            // failed silently) — this keeps the UI consistent with what the
+            // user just typed, without waiting on a second round-trip.
+            await loadData()
+            if let typed = typedNickname {
+                friends = friends.map { f in
+                    guard f.pair_id == capturedPairId else { return f }
+                    return Friend(
+                        pair_id: f.pair_id,
+                        partner_id: f.partner_id,
+                        partner_name: f.partner_name,
+                        partner_nickname: typed,
+                        relationship: relationship ?? f.relationship,
+                        status: f.status
+                    )
+                }
+            }
+            SharedDataManager.shared.saveFriends(friends)
+            SharedDataManager.shared.reloadWidgets()
+
+            await MainActor.run {
+                let displayName = typedNickname ?? pickerPartnerName
+                widgetSetupPartnerName = displayName
+                widgetSetupIsNewPairing = true
+                // Give the fullScreenCover a beat to dismiss before we push the
+                // next screen (otherwise SwiftUI will swallow the presentation).
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    if tutorialStep == .copyCode || tutorialStep == .pasteCode {
+                        tutorialNewPartnerName = displayName
+                        showTutorialCongrats = true
+                    } else {
+                        showWidgetSetup = true
+                    }
+                }
+            }
+        }
     }
 
     func acceptInvite() {
@@ -745,10 +1041,18 @@ struct HomeView: View {
                 // Save friends to widget right away
                 SharedDataManager.shared.saveFriends(friends)
                 SharedDataManager.shared.reloadWidgets()
-                // Go straight to widget setup
-                widgetSetupPartnerName = resp.partner_name.isEmpty ? "Friend" : resp.partner_name
+                let partnerDisplay = resp.partner_name.isEmpty ? "Friend" : resp.partner_name
+                widgetSetupPartnerName = partnerDisplay
                 widgetSetupIsNewPairing = true
-                showWidgetSetup = true
+
+                // Present the "who are they to you" intermezzo before we
+                // hand off to the tutorial congrats / widget setup. That
+                // screen's onComplete re-enters the normal post-accept flow.
+                pickerPairId = resp.pair_id
+                pickerPartnerName = partnerDisplay
+                showRelationshipPicker = true
+            } catch APIError.paymentRequired {
+                await MainActor.run { PaywallPresenter.shared.presentForServerReject() }
             } catch {
                 alertMsg = error.localizedDescription
                 showAlert = true
@@ -768,6 +1072,8 @@ struct HomeView: View {
                     body: EmptyBody()
                 )
                 generatedInviteCode = resp.invite_code
+            } catch APIError.paymentRequired {
+                await MainActor.run { PaywallPresenter.shared.presentForServerReject() }
             } catch {
                 alertMsg = error.localizedDescription
                 showAlert = true
@@ -790,6 +1096,10 @@ struct HomeView: View {
 
 struct CardPreviewView: View {
     let card: Card
+    /// Optional override for the sender pill. When set (usually to the
+    /// recipient's custom nickname for the sender), we show this instead of
+    /// the raw `card.sender_name` baked in at send time.
+    var displayName: String? = nil
     private let baseSize: Double = 300.0
 
     var body: some View {
@@ -839,12 +1149,15 @@ struct CardPreviewView: View {
                                       y: el.y * fillScale + offsetY)
                     }
                 }
-                if let sender = card.sender_name, !sender.isEmpty {
+                // Prefer the recipient's custom nickname over the raw
+                // sender_name that was stamped on the card at send time.
+                if let name = (displayName?.isEmpty == false ? displayName : card.sender_name),
+                   !name.isEmpty {
                     VStack {
                         Spacer()
                         HStack {
                             Spacer()
-                            Text("💌 \(sender)")
+                            Text("💌 \(name)")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.95))
                                 .padding(.horizontal, 8)

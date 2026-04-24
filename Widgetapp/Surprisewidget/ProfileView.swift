@@ -3,6 +3,15 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(AuthManager.self) private var auth
 
+    init() {
+        let attrs: [NSAttributedString.Key: Any] = [
+            .foregroundColor: UIColor(red: 44/255, green: 26/255, blue: 77/255, alpha: 1)
+        ]
+        UINavigationBar.appearance().largeTitleTextAttributes = attrs
+        UINavigationBar.appearance().titleTextAttributes = attrs
+    }
+
+    @State private var showSettings = false
     @State private var friends: [Friend] = []
     @State private var loadingFriends = true
     @State private var unpairTarget: Friend? = nil
@@ -29,6 +38,11 @@ struct ProfileView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
+                        // Page title
+                        Text("Profile")
+                            .font(.system(size: 34, weight: .black, design: .rounded))
+                            .foregroundStyle(cPurpleBorder)
+
                         // Profile Card
                         VStack(spacing: 16) {
                             Circle()
@@ -65,7 +79,18 @@ struct ProfileView: View {
                                     .font(.system(size: 20, weight: .black, design: .rounded))
                                     .foregroundStyle(cPurpleBorder)
                                 Spacer()
-                                Button(action: { showInviteSheet = true }) {
+                                Button(action: {
+                                    // Free tier is capped at 2 friends total (self-pair
+                                    // from onboarding counts). Once full, tapping "Add"
+                                    // goes straight to the paywall instead of the invite
+                                    // sheet — the invite sheet would just produce a code
+                                    // the backend now refuses to hand out.
+                                    if !StoreKitManager.shared.isPurchased && friends.count >= 2 {
+                                        PaywallPresenter.shared.gate { showInviteSheet = true }
+                                    } else {
+                                        showInviteSheet = true
+                                    }
+                                }) {
                                     Label("Add", systemImage: "plus")
                                         .font(.system(size: 14, weight: .black))
                                         .foregroundStyle(cPurpleBorder)
@@ -93,7 +118,7 @@ struct ProfileView: View {
                                             .fill(cPurple)
                                             .frame(width: 48, height: 48)
                                             .overlay(
-                                                Text(String(friend.partner_name.prefix(1)).uppercased())
+                                                Text(String(friend.displayName.prefix(1)).uppercased())
                                                     .font(.system(size: 20, weight: .black, design: .rounded))
                                                     .foregroundStyle(cWhite)
                                             )
@@ -152,16 +177,26 @@ struct ProfileView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(cBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
+                    Button(action: { showSettings = true }) {
                         Image(systemName: "gearshape.fill")
                             .font(.system(size: 20))
                             .foregroundStyle(cPurpleBorder)
+                            .frame(width: 36, height: 36)
+                            .background(Color.clear)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .tint(.clear)
                 }
+            }
+            .navigationDestination(isPresented: $showSettings) {
+                SettingsView()
+                    .environment(auth)
             }
             .alert("Remove Friend", isPresented: $showUnpairAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -278,6 +313,9 @@ struct ProfileView: View {
                 // widget can't show a ghost card between now and its next
                 // timeline refresh.
                 SharedDataManager.shared.clearCard(forPairId: friend.pair_id)
+                // Also drop any locally-cached nickname/relationship so a
+                // future re-pair with the same person starts from a clean slate.
+                LocalNicknameCache.clear(forPairId: friend.pair_id)
                 await auth.refreshUser()
                 await loadFriends()
                 // saveFriends inside loadFriends will also run purgeOrphanCards,

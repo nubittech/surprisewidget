@@ -16,6 +16,10 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
+import asyncio
+import collections
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -46,6 +50,8 @@ class UserResponse(BaseModel):
     email: str
     name: str
     pair_ids: List[str] = []
+    is_premium: bool = False
+    premium_until: Optional[str] = None  # ISO-8601 UTC, None = never / lifetime handled via flag
 
 class TokenResponse(BaseModel):
     user: UserResponse
@@ -56,6 +62,11 @@ class InviteResponse(BaseModel):
 
 class AcceptInviteRequest(BaseModel):
     invite_code: str
+    partner_nickname: Optional[str] = None
+    relationship: Optional[str] = None
+
+class UpdatePairLabelRequest(BaseModel):
+    pair_id: str
     partner_nickname: Optional[str] = None
     relationship: Optional[str] = None
 
@@ -90,6 +101,7 @@ class CardElement(BaseModel):
     size: Optional[float] = None
     fontFamily: Optional[str] = None
     rotation: Optional[float] = None
+    textBg: Optional[str] = None
 
 class CreateCardRequest(BaseModel):
     pair_id: str  # which friend to send to
@@ -161,6 +173,90 @@ async def get_current_user(request: Request) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+def is_user_premium(user: dict) -> bool:
+    """Source of truth for premium status on the backend.
+    Lifetime entitlements set is_premium=True (no expiry).
+    Subscription-style entitlements set premium_until to a future UTC datetime.
+    """
+    if user.get("is_premium") is True:
+        return True
+    pu = user.get("premium_until")
+    if isinstance(pu, datetime):
+        if pu.tzinfo is None:
+            pu = pu.replace(tzinfo=timezone.utc)
+        return pu > datetime.now(timezone.utc)
+    return False
+
+def user_premium_until_iso(user: dict) -> Optional[str]:
+    pu = user.get("premium_until")
+    if isinstance(pu, datetime):
+        if pu.tzinfo is None:
+            pu = pu.replace(tzinfo=timezone.utc)
+        return pu.isoformat()
+    return None
+
+def build_user_response(user: dict, user_id: str, email: str, name: str, pair_ids: List[str]) -> UserResponse:
+    return UserResponse(
+        id=user_id,
+        email=email,
+        name=name,
+        pair_ids=pair_ids,
+        is_premium=is_user_premium(user),
+        premium_until=user_premium_until_iso(user),
+    )
+
+# ---------------------------------------------------------------------------
+# Spam / rate-limit helpers
+# ---------------------------------------------------------------------------
+
+# In-memory burst limiter: (key, window_minute) → hit count
+# Lightweight; resets on server restart but that's fine for burst protection.
+_burst_counters: dict = collections.defaultdict(int)
+_burst_lock = asyncio.Lock()
+
+async def check_burst(key: str, max_hits: int = 5, window_seconds: int = 60):
+    """Raise 429 if `key` exceeds `max_hits` in the current time window.
+    Window is rounded to `window_seconds`-wide UTC buckets.
+    """
+    bucket = int(datetime.now(timezone.utc).timestamp() // window_seconds)
+    full_key = f"{key}:{bucket}"
+    async with _burst_lock:
+        _burst_counters[full_key] += 1
+        count = _burst_counters[full_key]
+        # Prune stale buckets roughly every 1000 hits to avoid unbounded growth
+        if len(_burst_counters) > 1000:
+            now_bucket = bucket
+            stale = [k for k in list(_burst_counters) if int(k.rsplit(":", 1)[-1]) < now_bucket - 2]
+            for k in stale:
+                _burst_counters.pop(k, None)
+    if count > max_hits:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down and try again."
+        )
+
+async def check_login_attempts(ip: str, email: str):
+    """MongoDB-backed brute-force guard for /auth/login.
+    Blocks after 10 failed attempts per IP per 15-minute window.
+    """
+    window_start = datetime.now(timezone.utc) - timedelta(minutes=15)
+    count = await db.login_attempts.count_documents({
+        "$or": [{"ip": ip}, {"email": email.lower()}],
+        "ts": {"$gte": window_start},
+        "success": False,
+    })
+    if count >= 10:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts. Please try again later."
+        )
+
+async def record_login_attempt(ip: str, email: str, success: bool):
+    await db.login_attempts.insert_one({
+        "ip": ip, "email": email.lower(),
+        "success": success, "ts": datetime.now(timezone.utc)
+    })
+
 def generate_invite_code(length=6):
     chars = string.ascii_uppercase + string.digits
     return ''.join(secrets.choice(chars) for _ in range(length))
@@ -210,21 +306,27 @@ async def register(req: RegisterRequest):
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
     token = create_access_token(user_id, email)
+    fresh = await db.users.find_one({"_id": result.inserted_id}) or user_doc
 
     return TokenResponse(
-        user=UserResponse(id=user_id, email=email, name=req.name, pair_ids=[]),
+        user=build_user_response(fresh, user_id, email, req.name, []),
         access_token=token
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     email = req.email.lower()
+    ip = request.client.host if request.client else "unknown"
+
+    # Brute-force guard: block after 10 failed attempts per IP/email in 15 min
+    await check_login_attempts(ip, email)
+
     user = await db.users.find_one({"email": email})
-    if not user:
-        raise HTTPException(status_code=401, detail="Geçersiz e-posta veya şifre")
-    if not verify_password(req.password, user["password_hash"]):
+    if not user or not verify_password(req.password, user.get("password_hash") or ""):
+        await record_login_attempt(ip, email, success=False)
         raise HTTPException(status_code=401, detail="Geçersiz e-posta veya şifre")
 
+    await record_login_attempt(ip, email, success=True)
     user_id = str(user["_id"])
     # Migrate old pair_id to pair_ids
     if "pair_ids" not in user:
@@ -235,7 +337,7 @@ async def login(req: LoginRequest):
 
     token = create_access_token(user_id, email)
     return TokenResponse(
-        user=UserResponse(id=user_id, email=email, name=user.get("name", ""), pair_ids=pair_ids),
+        user=build_user_response(user, user_id, email, user.get("name", ""), pair_ids),
         access_token=token
     )
 
@@ -318,7 +420,7 @@ async def apple_sign_in(req: AppleSignInRequest):
     pair_ids = [str(p) for p in user.get("pair_ids", []) if p]
     token = create_access_token(user_id, user_email)
     return TokenResponse(
-        user=UserResponse(id=user_id, email=user_email, name=user.get("name", ""), pair_ids=pair_ids),
+        user=build_user_response(user, user_id, user_email, user.get("name", ""), pair_ids),
         access_token=token
     )
 
@@ -354,21 +456,87 @@ async def reset_password(req: ResetPasswordRequest):
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(user: dict = Depends(get_current_user)):
-    return UserResponse(
-        id=user["id"],
-        email=user["email"],
-        name=user.get("name", ""),
-        pair_ids=user.get("pair_ids", [])
+    return build_user_response(
+        user,
+        user["id"],
+        user["email"],
+        user.get("name", ""),
+        user.get("pair_ids", []),
+    )
+
+
+class SyncEntitlementRequest(BaseModel):
+    is_active: bool
+    # ISO-8601 UTC expiration from RevenueCat (null for lifetime or inactive)
+    expiration_date: Optional[str] = None
+    product_id: Optional[str] = None
+
+@api_router.post("/users/me/sync-entitlement", response_model=UserResponse)
+async def sync_entitlement(
+    req: SyncEntitlementRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Client reports its current RevenueCat entitlement state.
+    Backend stores is_premium + premium_until as the authoritative source for
+    server-side gates (pair limit, sticker/bg reject, daily cap).
+    """
+    update: dict = {}
+    if req.is_active:
+        # Parse expiration if provided; lifetime entitlements come with None.
+        expires_at: Optional[datetime] = None
+        if req.expiration_date:
+            try:
+                raw = req.expiration_date.replace("Z", "+00:00")
+                expires_at = datetime.fromisoformat(raw)
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+            except Exception:
+                expires_at = None
+
+        update["is_premium"] = True
+        update["premium_until"] = expires_at  # may be None for lifetime
+        update["premium_product_id"] = req.product_id
+        update["premium_synced_at"] = datetime.now(timezone.utc)
+    else:
+        # Client reports no active entitlement. Keep premium_until in place so
+        # a client with a stale/offline RevenueCat cache can't accidentally
+        # downgrade an active subscription — server re-evaluates via is_user_premium.
+        update["is_premium"] = False
+        update["premium_synced_at"] = datetime.now(timezone.utc)
+
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": update})
+    fresh = await db.users.find_one({"_id": ObjectId(user["id"])}) or user
+    return build_user_response(
+        fresh,
+        user["id"],
+        user["email"],
+        fresh.get("name", user.get("name", "")),
+        [str(p) for p in fresh.get("pair_ids", []) if p],
     )
 
 
 # --- Pairing Routes ---
+FREE_PAIR_LIMIT = 2
+PREMIUM_PAIR_LIMIT = 10
+
+def pair_limit_for(user: dict) -> int:
+    return PREMIUM_PAIR_LIMIT if is_user_premium(user) else FREE_PAIR_LIMIT
+
 @api_router.post("/pairs/create-invite", response_model=InviteResponse)
 async def create_invite(user: dict = Depends(get_current_user)):
-    # Allow multiple invites/friends — no restriction on existing pairs
     existing = await db.invites.find_one({"creator_id": user["id"], "status": "pending"})
     if existing:
         return InviteResponse(invite_code=existing["code"])
+
+    # Gate — refuse to generate a new invite code if the user is already at
+    # their pair cap. The accept_invite endpoint enforces the same limit, but
+    # blocking here avoids handing out codes that can never be redeemed.
+    pair_count = len([p for p in user.get("pair_ids", []) if p])
+    if pair_count >= pair_limit_for(user):
+        raise HTTPException(
+            status_code=402,
+            detail="You've reached your friend limit. Upgrade to Premium to add more."
+        )
 
     code = generate_invite_code()
     while await db.invites.find_one({"code": code}):
@@ -390,6 +558,22 @@ async def accept_invite(req: AcceptInviteRequest, user: dict = Depends(get_curre
         raise HTTPException(status_code=404, detail="Geçersiz veya süresi dolmuş davet kodu")
 
     creator_id = invite["creator_id"]
+
+    # Pair-count guard: both sides must have room under their tier cap.
+    acceptor_count = len([p for p in user.get("pair_ids", []) if p])
+    if acceptor_count >= pair_limit_for(user):
+        raise HTTPException(
+            status_code=402,
+            detail="You've reached your friend limit. Upgrade to Premium to add more."
+        )
+    creator = await db.users.find_one({"_id": ObjectId(creator_id)})
+    if creator:
+        creator_count = len([p for p in creator.get("pair_ids", []) if p])
+        if creator_count >= pair_limit_for(creator):
+            raise HTTPException(
+                status_code=402,
+                detail="The person who sent this code has hit their friend limit."
+            )
 
     # Check if already friends with this person
     for pair_id_str in user.get("pair_ids", []):
@@ -463,6 +647,50 @@ async def get_pair_status(user: dict = Depends(get_current_user)):
         friends=friends
     )
 
+@api_router.post("/pairs/update-label")
+async def update_pair_label(req: UpdatePairLabelRequest, user: dict = Depends(get_current_user)):
+    """
+    Lets the current user set (or update) how they label a specific pair:
+      • partner_nickname — what they call their partner (shows on widget)
+      • relationship     — e.g. "My Love", "My Bestie"
+
+    Only the *caller's* nickname slot is updated. If caller is user_1 of the
+    pair, we write nickname_1. If caller is user_2, we write nickname_2.
+    This keeps each participant's personal labels independent.
+    """
+    if req.pair_id not in user.get("pair_ids", []):
+        raise HTTPException(status_code=400, detail="Bu eşleşme bulunamadı")
+
+    try:
+        pair = await db.pairs.find_one({"_id": ObjectId(req.pair_id)})
+    except Exception:
+        pair = None
+    if not pair:
+        raise HTTPException(status_code=404, detail="Eşleşme bulunamadı")
+
+    # Determine which nickname slot to update based on the caller's identity.
+    if pair.get("user_1") == user["id"]:
+        nickname_field = "nickname_1"
+    elif pair.get("user_2") == user["id"]:
+        nickname_field = "nickname_2"
+    else:
+        raise HTTPException(status_code=403, detail="Bu eşleşmede yetkin yok")
+
+    update_set: dict = {}
+    # Trim empty strings → None so we don't persist whitespace nicknames.
+    nickname = (req.partner_nickname or "").strip() or None
+    update_set[nickname_field] = nickname
+    # Relationship is a shared field on the pair (both users share one label).
+    if req.relationship is not None:
+        rel = req.relationship.strip() or None
+        update_set["relationship"] = rel
+
+    await db.pairs.update_one(
+        {"_id": pair["_id"]},
+        {"$set": update_set}
+    )
+    return {"message": "Güncellendi"}
+
 @api_router.get("/pairs/friends", response_model=List[FriendResponse])
 async def get_friends(user: dict = Depends(get_current_user)):
     return await build_friends_list(user)
@@ -492,14 +720,86 @@ async def unpair(req: UnpairRequest, user: dict = Depends(get_current_user)):
 
 
 # --- Card Routes ---
+# Premium-content gates for card payload
+def _is_premium_background(bg: str) -> bool:
+    """PNG backgrounds are stored with an 'img:' prefix (see BG_IMAGES in iOS).
+    Solid-color backgrounds are hex strings and free for everyone.
+    """
+    return isinstance(bg, str) and bg.startswith("img:")
+
+def _is_premium_sticker_asset(name: str) -> bool:
+    """Essentials stickers use the 'stk_temel_' prefix and are free. Every
+    other 'stk_' asset belongs to a premium category.
+    Emojis and user text/images don't go through this check.
+    """
+    if not isinstance(name, str):
+        return False
+    if name.startswith("stk_temel_"):
+        return False
+    return name.startswith("stk_")
+
 @api_router.post("/cards/create", response_model=CardResponse)
 async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_user)):
     if req.pair_id not in user.get("pair_ids", []):
         raise HTTPException(status_code=400, detail="Bu eşleşme bulunamadı")
 
+    is_premium = is_user_premium(user)
+
+    # Premium content gate: PNG bg + premium stickers require Premium.
+    if not is_premium and _is_premium_background(req.background):
+        raise HTTPException(
+            status_code=402,
+            detail="Premium backgrounds are unlocked with Premium."
+        )
+    if not is_premium:
+        for el in req.elements:
+            if el.type == "sticker" and _is_premium_sticker_asset(el.content):
+                raise HTTPException(
+                    status_code=402,
+                    detail="Premium stickers are unlocked with Premium."
+                )
+
+    # Burst guard: max 3 send attempts per user per 30 seconds regardless of
+    # daily limits. Prevents rapid-fire spam before the daily counter persists.
+    await check_burst(f"card_send:{user['id']}", max_hits=3, window_seconds=30)
+
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    daily_count = await db.daily_limits.find_one({"user_id": user["id"], "date": today})
-    used = daily_count["count"] if daily_count else 0
+    limit = 10 if is_premium else 1
+    daily_key = {"user_id": user["id"], "pair_id": req.pair_id, "date": today}
+
+    # Atomic increment + limit check in one round-trip (race-safe).
+    # We increment first; if the resulting count exceeds the limit we reject
+    # WITHOUT creating the card. The counter may end slightly above `limit` if
+    # concurrent requests slip through simultaneously, but that's bounded by
+    # the burst guard above (max 3 concurrent) and is acceptable.
+    try:
+        doc = await db.daily_limits.find_one_and_update(
+            daily_key,
+            {"$inc": {"count": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+    except DuplicateKeyError:
+        # Two simultaneous upserts on the same key; retry as a plain update.
+        doc = await db.daily_limits.find_one_and_update(
+            daily_key,
+            {"$inc": {"count": 1}},
+            return_document=ReturnDocument.AFTER,
+        )
+
+    used = doc["count"] if doc else 1
+    if used > limit:
+        # Roll counter back so we don't inflate it on rejected attempts.
+        await db.daily_limits.update_one(daily_key, {"$inc": {"count": -1}})
+        if is_premium:
+            raise HTTPException(
+                status_code=429,
+                detail="Daily card limit reached for this friend. Try again tomorrow."
+            )
+        raise HTTPException(
+            status_code=402,
+            detail="You've used today's free card for this friend. Upgrade to Premium for more."
+        )
 
     pair = await db.pairs.find_one({"_id": ObjectId(req.pair_id)})
     if not pair:
@@ -523,11 +823,7 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
     }
     result = await db.cards.insert_one(card_doc)
 
-    await db.daily_limits.update_one(
-        {"user_id": user["id"], "date": today},
-        {"$inc": {"count": 1}},
-        upsert=True
-    )
+    # Counter already incremented atomically above. No second write needed.
 
     # Send push notification to the receiver so their widget updates instantly
     try:
@@ -753,11 +1049,35 @@ async def send_push_notification(user_id: str, payload: dict):
 
 # --- Limit Routes ---
 @api_router.get("/limits/status", response_model=LimitResponse)
-async def get_limit_status(user: dict = Depends(get_current_user)):
+async def get_limit_status(user: dict = Depends(get_current_user), pair_id: Optional[str] = None):
+    """Aggregate daily card usage.
+
+    - If `pair_id` is provided, returns usage for that specific pair
+      (the limit the sender actually hits when sending to that friend).
+    - Otherwise returns the sum across all the user's pairs, with the
+      theoretical ceiling being per-pair-limit × number-of-pairs.
+    """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    daily_count = await db.daily_limits.find_one({"user_id": user["id"], "date": today})
-    used = daily_count["count"] if daily_count else 0
-    return LimitResponse(used=used, limit=10, remaining=max(0, 10 - used))
+    per_pair_limit = 10 if is_user_premium(user) else 1
+    pair_ids = [p for p in user.get("pair_ids", []) if p]
+
+    if pair_id:
+        if pair_id not in pair_ids:
+            raise HTTPException(status_code=400, detail="Bu eşleşme bulunamadı")
+        doc = await db.daily_limits.find_one(
+            {"user_id": user["id"], "pair_id": pair_id, "date": today}
+        )
+        used = doc["count"] if doc else 0
+        limit = per_pair_limit
+    else:
+        # Sum usage across every pair for the day so the user sees global
+        # remaining. Includes legacy docs that pre-date the pair_id split.
+        cursor = db.daily_limits.find({"user_id": user["id"], "date": today})
+        used = 0
+        async for doc in cursor:
+            used += int(doc.get("count", 0) or 0)
+        limit = per_pair_limit * max(1, len(pair_ids))
+    return LimitResponse(used=used, limit=limit, remaining=max(0, limit - used))
 
 
 # Include router and middleware
@@ -779,8 +1099,42 @@ async def startup():
     await db.invites.create_index("creator_id")
     await db.cards.create_index([("receiver_id", 1), ("created_at", -1)])
     await db.cards.create_index([("sender_id", 1), ("created_at", -1)])
-    await db.daily_limits.create_index([("user_id", 1), ("date", 1)], unique=True)
+    # Daily limits switched from per-user-per-day to per-user-per-pair-per-day
+    # when free-tier gating shipped. Drop the legacy unique index if present
+    # so the new composite index can be built without conflicts.
+    try:
+        await db.daily_limits.drop_index("user_id_1_date_1")
+    except Exception:
+        pass
+    await db.daily_limits.create_index(
+        [("user_id", 1), ("pair_id", 1), ("date", 1)], unique=True
+    )
     await db.devices.create_index([("user_id", 1), ("device_token", 1)], unique=True)
+    # Login attempt records auto-expire after 1 hour (TTL = 3600 seconds)
+    await db.login_attempts.create_index("ts", expireAfterSeconds=3600)
+    await db.login_attempts.create_index([("ip", 1), ("ts", 1)])
+    await db.login_attempts.create_index([("email", 1), ("ts", 1)])
+
+    # ── One-time migration: reset sandbox/test premium flags ──────────────
+    # Premium gating shipped in v1.4. Before this, some users got is_premium=True
+    # from TestFlight RevenueCat sandbox purchases. Reset everyone to free tier;
+    # the app will re-sync via /users/me/sync-entitlement on next launch so
+    # genuine paying users get their status back within seconds.
+    migration_id = "reset_sandbox_premium_v1"
+    already_run = await db.migrations.find_one({"id": migration_id})
+    if not already_run:
+        result = await db.users.update_many(
+            {"is_premium": True},
+            {"$set": {"is_premium": False, "premium_until": None, "premium_product_id": None}}
+        )
+        # Also wipe daily_limits so counters start fresh under the new schema.
+        await db.daily_limits.delete_many({})
+        await db.migrations.insert_one({
+            "id": migration_id,
+            "ran_at": datetime.now(timezone.utc),
+            "users_reset": result.modified_count,
+        })
+        logger.info(f"[Migration] {migration_id}: reset {result.modified_count} users to free tier")
 
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")

@@ -11,6 +11,9 @@ class StoreKitManager {
     private(set) var isPurchased = false
     private(set) var isLoading = false
     private(set) var errorMessage: String?
+    /// ISO-8601 expiration date from RevenueCat, or nil for lifetime / inactive.
+    private(set) var expirationISO: String?
+    private(set) var productIdentifier: String?
 
     // The lifetime package fetched from RevenueCat offerings
     private(set) var lifetimePackage: Package?
@@ -54,11 +57,9 @@ class StoreKitManager {
         await MainActor.run { isLoading = true; errorMessage = nil }
         do {
             let result = try await Purchases.shared.purchase(package: pkg)
-            let active = result.customerInfo.entitlements[StoreKitManager.entitlementID]?.isActive == true
-            await MainActor.run {
-                isPurchased = active
-                isLoading = false
-            }
+            await applyCustomerInfo(result.customerInfo)
+            await MainActor.run { isLoading = false }
+            await syncEntitlementWithBackend()
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
@@ -73,12 +74,13 @@ class StoreKitManager {
         await MainActor.run { isLoading = true; errorMessage = nil }
         do {
             let info = try await Purchases.shared.restorePurchases()
-            let active = info.entitlements[StoreKitManager.entitlementID]?.isActive == true
+            await applyCustomerInfo(info)
+            let active = isPurchased
             await MainActor.run {
-                isPurchased = active
                 isLoading = false
                 if !active { errorMessage = "No previous purchase found." }
             }
+            await syncEntitlementWithBackend()
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
@@ -98,10 +100,53 @@ class StoreKitManager {
     func updatePurchasedStatus() async {
         do {
             let info = try await Purchases.shared.customerInfo()
-            let active = info.entitlements[StoreKitManager.entitlementID]?.isActive == true
-            await MainActor.run { isPurchased = active }
+            await applyCustomerInfo(info)
+            // Best-effort backend mirror — no-op if unauthenticated.
+            await syncEntitlementWithBackend()
         } catch {
             // Fail silently — user stays on free tier
         }
+    }
+
+    // MARK: - Backend Sync
+
+    private func applyCustomerInfo(_ info: CustomerInfo) async {
+        let ent = info.entitlements[StoreKitManager.entitlementID]
+        let active = ent?.isActive == true
+        let iso: String? = {
+            guard let date = ent?.expirationDate else { return nil }
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return fmt.string(from: date)
+        }()
+        let pid = ent?.productIdentifier
+        await MainActor.run {
+            isPurchased = active
+            expirationISO = iso
+            productIdentifier = pid
+        }
+    }
+
+    /// Mirror the current RevenueCat entitlement to the backend so server-side
+    /// gates (pair limit, daily cap, content reject) know the user's tier.
+    /// Safe to call without an auth token — the request will just fail silently.
+    func syncEntitlementWithBackend() async {
+        guard APIService.shared.token != nil else { return }
+        struct Body: Encodable {
+            let is_active: Bool
+            let expiration_date: String?
+            let product_id: String?
+        }
+        let body = Body(
+            is_active: isPurchased,
+            expiration_date: expirationISO,
+            product_id: productIdentifier
+        )
+        // We get the refreshed User back so AuthManager can pick up the
+        // new is_premium flag without a separate /auth/me round-trip.
+        let _: User? = try? await APIService.shared.post(
+            "/users/me/sync-entitlement",
+            body: body
+        )
     }
 }

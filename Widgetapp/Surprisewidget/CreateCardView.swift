@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 // MARK: - Draggable Element View
 
@@ -101,6 +102,7 @@ struct DraggableElementView: View {
 struct CreateCardView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.requestReview) private var requestReview
 
     // Optional friend preselected from HomeView (e.g. tapping a friend's avatar)
     let preselectedFriend: Friend?
@@ -117,10 +119,22 @@ struct CreateCardView: View {
     @State private var textInput = ""
     @State private var textColor = TEXT_COLORS[0]
     @State private var textFont = "System"
+    /// Optional decorative text-box frame rendered behind the text. When set,
+    /// tapping "Ekle" adds both the frame and the text as two elements that
+    /// land centered on each other so users can drag them together or tweak
+    /// individually afterwards.
+    @State private var selectedTextBox: String? = nil
+
+    // Asset names for the decorative frames shown in the text sheet.
+    private let TEXT_BOXES = [
+        "textbox_1", "textbox_2", "textbox_3",
+        "textbox_4", "textbox_5", "textbox_6",
+    ]
     @State private var sending = false
     @State private var alertMsg = ""
     @State private var showAlert = false
     @State private var alertIsSuccess = false
+    @State private var showLimitAlert = false   // daily free-tier cap reached
     @State private var selectedStickerCategory: StickerCategory? = STICKER_CATEGORIES.first
 
     // Friend picker state
@@ -253,7 +267,7 @@ struct CreateCardView: View {
                         .overlay(Circle().stroke(cPurpleBorder, lineWidth: 3))
 
                         VStack(spacing: 6) {
-                            Text("Sent! 🎉")
+                            Text("Sent!")
                                 .font(.system(size: 26, weight: .heavy, design: .rounded))
                                 .foregroundStyle(cPurpleBorder)
                             Text("Your card is on its way!")
@@ -267,7 +281,7 @@ struct CreateCardView: View {
                                 dismiss()
                             }
                         }) {
-                            Text("Harika")
+                            Text("Awesome!")
                                 .font(.system(size: 17, weight: .black, design: .rounded))
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
@@ -325,6 +339,77 @@ struct CreateCardView: View {
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
+            // ── Daily limit reached toast ───────────────────────────────────
+            if showLimitAlert {
+                Color.black.opacity(0.45)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3)) { showLimitAlert = false }
+                    }
+
+                VStack(spacing: 20) {
+                    // Icon
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#FFF5CC"))
+                            .frame(width: 80, height: 80)
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 32, weight: .black))
+                            .foregroundStyle(Color(hex: "#2C1A4D"))
+                    }
+                    .overlay(Circle().stroke(Color(hex: "#2C1A4D"), lineWidth: 3))
+
+                    // Text
+                    VStack(spacing: 8) {
+                        Text("Daily Limit Reached")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Color(hex: "#2C1A4D"))
+                        Text("You've used your free card for today.\nUpgrade to Premium for unlimited cards.")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#8A7A9A"))
+                            .multilineTextAlignment(.center)
+                    }
+
+                    // Go Premium CTA
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) { showLimitAlert = false }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            PaywallPresenter.shared.presentForServerReject()
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.open.fill")
+                                .font(.system(size: 16, weight: .black))
+                            Text("Go Premium")
+                                .font(.system(size: 17, weight: .black, design: .rounded))
+                        }
+                        .foregroundStyle(Color(hex: "#2C1A4D"))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color(hex: "#FFD666"))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color(hex: "#2C1A4D"), lineWidth: 3))
+                        .shadow(color: Color(hex: "#2C1A4D"), radius: 0, x: 3, y: 4)
+                    }
+
+                    // Dismiss
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) { showLimitAlert = false }
+                    }) {
+                        Text("Maybe Later")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#8A7A9A"))
+                    }
+                }
+                .padding(28)
+                .frame(maxWidth: 300)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 32))
+                .overlay(RoundedRectangle(cornerRadius: 32).stroke(Color(hex: "#2C1A4D"), lineWidth: 4))
+                .shadow(color: Color(hex: "#2C1A4D"), radius: 0, x: 5, y: 6)
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+            }
+
             } // End of ZStack
         }
         .ignoresSafeArea(edges: .bottom)
@@ -496,7 +581,7 @@ struct CreateCardView: View {
                         .fill(cPurpleLight)
                         .frame(width: 26, height: 26)
                         .overlay(
-                            Text(String(f.partner_name.prefix(1)).uppercased())
+                            Text(String(f.displayName.prefix(1)).uppercased())
                                 .font(.system(size: 13, weight: .black, design: .rounded))
                                 .foregroundStyle(cPurpleBorder)
                         )
@@ -544,7 +629,7 @@ struct CreateCardView: View {
                                     .fill(cPurpleLight)
                                     .frame(width: 48, height: 48)
                                     .overlay(
-                                        Text(String(friend.partner_name.prefix(1)).uppercased())
+                                        Text(String(friend.displayName.prefix(1)).uppercased())
                                             .font(.system(size: 20, weight: .black, design: .rounded))
                                             .foregroundStyle(cPurpleBorder)
                                     )
@@ -597,7 +682,7 @@ struct CreateCardView: View {
     func toolbar(canvasSize: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                toolTabBtn(icon: "paintpalette", label: "Arkaplan", tab: .bg)
+                toolTabBtn(icon: "paintpalette", label: "Background", tab: .bg)
                 toolTabBtn(icon: "face.smiling", label: "Sticker", tab: .sticker)
                 toolTabBtn(icon: "textformat", label: "Text", tab: .text, action: {
                     activeTab = .text
@@ -648,22 +733,42 @@ struct CreateCardView: View {
                     Divider().padding(.horizontal, 16)
 
                     // ── Row 2: PNG image backgrounds ─────────────────────
+                    // Free-tier users see a small lock badge on each PNG tile;
+                    // tapping a locked tile opens the paywall and, on purchase,
+                    // completes the selection automatically.
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(BG_IMAGES, id: \.self) { bg in
-                                Image(bgAssetName(bg))
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 52, height: 52)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(
-                                                background == bg ? cPurpleBorder : Color.clear,
-                                                lineWidth: 3
-                                            )
-                                    )
-                                    .onTapGesture { background = bg }
+                                ZStack(alignment: .topTrailing) {
+                                    Image(bgAssetName(bg))
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 52, height: 52)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(
+                                                    background == bg ? cPurpleBorder : Color.clear,
+                                                    lineWidth: 3
+                                                )
+                                        )
+                                    if !StoreKitManager.shared.isPurchased {
+                                        Image(systemName: "lock.fill")
+                                            .font(.system(size: 10, weight: .black))
+                                            .foregroundStyle(.white)
+                                            .padding(4)
+                                            .background(cPurpleBorder)
+                                            .clipShape(Circle())
+                                            .offset(x: 4, y: -4)
+                                    }
+                                }
+                                .onTapGesture {
+                                    if StoreKitManager.shared.isPurchased {
+                                        background = bg
+                                    } else {
+                                        PaywallPresenter.shared.gate { background = bg }
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -681,19 +786,31 @@ struct CreateCardView: View {
                         HStack(spacing: 8) {
                             ForEach(STICKER_CATEGORIES) { category in
                                 let isSelected = selectedStickerCategory?.id == category.id
+                                let isLocked = category.isPremium && !StoreKitManager.shared.isPurchased
+                                // Category is always tappable — user can browse premium stickers.
+                                // The paywall fires only when they attempt to ADD a sticker.
                                 Button(action: {
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         selectedStickerCategory = category
                                     }
                                 }) {
-                                    HStack(spacing: 8) {
+                                    HStack(spacing: 6) {
                                         Image(systemName: category.icon)
                                             .font(.system(size: 18, weight: .bold))
                                             .foregroundStyle(isSelected ? cPurpleBorder : cTextMuted)
-                                        
+
                                         Text(category.name)
                                             .font(.system(size: 14, weight: .black, design: .rounded))
                                             .foregroundStyle(isSelected ? cPurpleBorder : cTextMuted)
+
+                                        if isLocked {
+                                            Image(systemName: "lock.fill")
+                                                .font(.system(size: 10, weight: .black))
+                                                .foregroundStyle(.white)
+                                                .padding(3)
+                                                .background(cPurpleBorder)
+                                                .clipShape(Circle())
+                                        }
                                     }
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 8)
@@ -712,20 +829,44 @@ struct CreateCardView: View {
                     
                     // Sticker Listesi - Geniş Alan
                     if let category = selectedStickerCategory {
+                        let categoryLocked = category.isPremium && !StoreKitManager.shared.isPurchased
                         ScrollView(.vertical, showsIndicators: false) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 50))], spacing: 16) {
                                 ForEach(category.items, id: \.self) { item in
-                                    Button(action: { addStickerItem(item) }) {
-                                        switch item {
-                                        case .emoji(let e):
-                                            Text(e)
-                                                .font(.system(size: 36))
-                                                .frame(width: 50, height: 50)
-                                        case .image(let name):
-                                            Image(name)
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 50, height: 50)
+                                    Button(action: {
+                                        // Premium category: open paywall when user
+                                        // taps to add. After purchase the sticker
+                                        // is placed automatically.
+                                        if categoryLocked {
+                                            PaywallPresenter.shared.gate { addStickerItem(item) }
+                                        } else {
+                                            addStickerItem(item)
+                                        }
+                                    }) {
+                                        ZStack(alignment: .topTrailing) {
+                                            switch item {
+                                            case .emoji(let e):
+                                                Text(e)
+                                                    .font(.system(size: 36))
+                                                    .frame(width: 50, height: 50)
+                                            case .image(let name):
+                                                Image(name)
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .frame(width: 50, height: 50)
+                                                    .opacity(categoryLocked ? 0.55 : 1)
+                                            }
+                                            // Small lock badge on each sticker when
+                                            // the whole category is premium-only.
+                                            if categoryLocked {
+                                                Image(systemName: "lock.fill")
+                                                    .font(.system(size: 8, weight: .black))
+                                                    .foregroundStyle(.white)
+                                                    .padding(2)
+                                                    .background(cPurpleBorder)
+                                                    .clipShape(Circle())
+                                                    .offset(x: 4, y: -4)
+                                            }
                                         }
                                     }
                                 }
@@ -777,61 +918,116 @@ struct CreateCardView: View {
         }
     }
 
-    var textSheet: some View {
+    @ViewBuilder var textSheet: some View {
+        let isTablet = UIDevice.current.userInterfaceIdiom == .pad
         NavigationStack {
             VStack(spacing: 16) {
                 Text("Add Text")
                     .font(.system(size: 24, weight: .black))
                     .foregroundStyle(cPurpleBorder)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 5)
 
                 TextEditor(text: $textInput)
                     .font(textFont == "System" ? .system(size: 18, weight: .bold) : .custom(textFont, size: 20))
                     .foregroundStyle(cPurpleBorder)
-                    .frame(height: 100)
+                    .frame(height: isTablet ? 140 : 100)
                     .padding(12)
                     .background(cPurpleLight)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(cPurpleBorder, lineWidth: 3))
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(FONTS, id: \.self) { f in
-                            Button(action: { textFont = f }) {
-                                Text("Aa")
-                                    .font(f == "System" ? .system(size: 20, weight: .bold) : .custom(f, size: 22))
-                                    .foregroundStyle(cPurpleBorder)
-                                    .frame(width: 48, height: 48)
-                                    .background(textFont == f ? cWhite : cBg)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(textFont == f ? cPurpleBorder : cPurpleLight, lineWidth: 3))
+                // ── Text Box (decorative frame) picker ────────────────────────
+                // Lets the user pick an optional hand-drawn frame that wraps
+                // around the text they're about to add. Tapping a thumbnail
+                // selects/deselects it; tapping the same one again clears.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Text Box")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .foregroundStyle(cPurpleBorder)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            // "None" option — clears the current selection
+                            Button(action: { selectedTextBox = nil }) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(cBg)
+                                    // Hand-drawn "Ø" slash (no SF Symbol)
+                                    Path { p in
+                                        p.move(to: CGPoint(x: 14, y: 40))
+                                        p.addLine(to: CGPoint(x: 54, y: 14))
+                                    }
+                                    .stroke(cPurpleBorder, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                }
+                                .frame(width: isTablet ? 84 : 68, height: isTablet ? 60 : 52)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedTextBox == nil ? cPurpleBorder : cPurpleLight,
+                                                lineWidth: selectedTextBox == nil ? 3 : 2)
+                                )
+                            }
+
+                            ForEach(TEXT_BOXES, id: \.self) { name in
+                                Button(action: {
+                                    selectedTextBox = (selectedTextBox == name) ? nil : name
+                                }) {
+                                    let isSelected = selectedTextBox == name
+                                    Image(name)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: isTablet ? 84 : 68, height: isTablet ? 60 : 52)
+                                        .padding(4)
+                                        .background(isSelected ? cPurpleLight : cWhite)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(isSelected ? cPurpleBorder : cPurpleLight,
+                                                        lineWidth: isSelected ? 3 : 2)
+                                        )
+                                }
                             }
                         }
-                    }
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(TEXT_COLORS, id: \.self) { c in
-                            Circle()
-                                .fill(Color(hex: c))
-                                .frame(width: 36, height: 36)
-                                .overlay(
-                                    Circle().stroke(
-                                        textColor == c ? cPurpleBorder : .clear,
-                                        lineWidth: 3
-                                    )
-                                )
-                                .overlay(
-                                    c == "#FFFFFF" ? Circle().stroke(cPurpleLight, lineWidth: 3) : nil
-                                )
-                                .onTapGesture { textColor = c }
-                        }
+                        .padding(.vertical, 2)
                     }
                 }
 
                 HStack(spacing: 12) {
+                    ForEach(FONTS, id: \.self) { f in
+                        Button(action: { textFont = f }) {
+                            Text("Aa")
+                                .font(f == "System" ? .system(size: 20, weight: .bold) : .custom(f, size: 22))
+                                .foregroundStyle(cPurpleBorder)
+                                .frame(width: isTablet ? 60 : 48, height: isTablet ? 60 : 48)
+                                .background(textFont == f ? cWhite : cBg)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(textFont == f ? cPurpleBorder : cPurpleLight, lineWidth: 3))
+                        }
+                    }
+                    Spacer()
+                }
+
+                HStack(spacing: isTablet ? 16 : 10) {
+                    ForEach(TEXT_COLORS, id: \.self) { c in
+                        Circle()
+                            .fill(Color(hex: c))
+                            .frame(width: isTablet ? 48 : 36, height: isTablet ? 48 : 36)
+                            .overlay(
+                                Circle().stroke(
+                                    textColor == c ? cPurpleBorder : .clear,
+                                    lineWidth: 3
+                                )
+                            )
+                            .overlay(
+                                c == "#FFFFFF" ? Circle().stroke(cPurpleLight, lineWidth: 3) : nil
+                            )
+                            .onTapGesture { textColor = c }
+                    }
+                    Spacer()
+                }
+
+                HStack(spacing: 12) {
                     Button(action: {
+                        selectedTextBox = nil
                         showTextSheet = false
                         activeTab = .none
                     }) {
@@ -839,18 +1035,18 @@ struct CreateCardView: View {
                             .font(.system(size: 16, weight: .heavy))
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 48)
+                    .frame(height: isTablet ? 56 : 48)
                     .background(cWhite)
                     .foregroundStyle(cPurpleBorder)
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(cPurpleBorder, lineWidth: 3))
 
                     Button(action: addText) {
-                        Text("Ekle")
+                        Text("Add")
                             .font(.system(size: 16, weight: .heavy))
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 48)
+                    .frame(height: isTablet ? 56 : 48)
                     .background(cPurple)
                     .foregroundStyle(cWhite)
                     .clipShape(Capsule())
@@ -858,9 +1054,14 @@ struct CreateCardView: View {
                 }
                 Spacer()
             }
-            .padding(24)
+            .padding(isTablet ? 32 : 24)
+            .frame(maxWidth: isTablet ? 560 : .infinity)
+            .frame(maxWidth: .infinity)
         }
-        .presentationDetents([.medium])
+        // Two detents so users can expand when the Text Box row needs more
+        // real estate. Defaults to medium to stay unobtrusive.
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Actions
@@ -879,16 +1080,54 @@ struct CreateCardView: View {
 
     func addText() {
         let trimmed = textInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let el = CanvasElement(
-            id: UUID().uuidString, type: "text", content: trimmed,
-            x: 40 + Double.random(in: 0...30),
-            y: 110 + Double.random(in: 0...40),
-            fontSize: 20, color: textColor, fontFamily: textFont
-        )
-        elements.append(el)
-        selectedId = el.id
+
+        // If the user picked a decorative frame, drop the frame even when no
+        // text was typed (some users want just the frame as a standalone
+        // element and will add their text manually afterwards).
+        if trimmed.isEmpty && selectedTextBox == nil { return }
+
+        // When a frame is selected we centre both elements on each other so
+        // they land as a pair. Plain text (no frame) keeps the original
+        // upper-left placement to preserve existing muscle memory.
+        let cx: Double
+        let cy: Double
+        if selectedTextBox != nil {
+            cx = 150.0 + Double.random(in: -15...15)
+            cy = 150.0 + Double.random(in: -15...15)
+        } else {
+            cx = 40.0 + Double.random(in: 0...30)
+            cy = 110.0 + Double.random(in: 0...40)
+        }
+
+        // ── Frame first (goes behind text since it's appended first) ──
+        if let boxName = selectedTextBox {
+            let frame = CanvasElement(
+                id: UUID().uuidString,
+                type: "image",
+                content: boxName,
+                x: cx,
+                y: cy,
+                size: 220
+            )
+            elements.append(frame)
+        }
+
+        // ── Text on top (if any) ──
+        if !trimmed.isEmpty {
+            let el = CanvasElement(
+                id: UUID().uuidString, type: "text", content: trimmed,
+                x: cx,
+                y: cy,
+                fontSize: 40, color: textColor, fontFamily: textFont
+            )
+            elements.append(el)
+            selectedId = el.id
+        } else if let last = elements.last {
+            selectedId = last.id
+        }
+
         textInput = ""
+        selectedTextBox = nil
         showTextSheet = false
         activeTab = .none
     }
@@ -928,9 +1167,9 @@ struct CreateCardView: View {
                     "/cards/create",
                     body: CreateBody(pair_id: pairId, background: background, elements: elements)
                 )
-                // Cache locally so the sender's own widget (if any) updates
-                // immediately without waiting for a timeline refresh.
-                SharedDataManager.shared.saveCard(created, forPairId: pairId)
+                // Reload so the receiver's widget refreshes via backend — do NOT
+                // write the sent card into the sender's cache; the sender's widget
+                // should continue showing cards received FROM their partner.
                 SharedDataManager.shared.reloadWidgets()
 
                 alertIsSuccess = true
@@ -939,6 +1178,28 @@ struct CreateCardView: View {
                 elements = []
                 selectedId = nil
                 background = BACKGROUNDS[0]   // reset to default color
+
+                // ── App Store review prompt ──────────────────────────────────
+                // Ask for a rating only on the very first card send, after a
+                // short delay so the success feedback is visible first.
+                let defaults = UserDefaults.standard
+                if !defaults.bool(forKey: "hasEverSentCard") {
+                    defaults.set(true, forKey: "hasEverSentCard")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        requestReview()
+                    }
+                }
+            } catch APIError.paymentRequired(let msg) {
+                // Differentiate daily-limit 402 (custom toast) from
+                // premium-content 402 (direct paywall sheet).
+                let isLimit = msg.lowercased().contains("today") ||
+                              msg.lowercased().contains("daily") ||
+                              msg.lowercased().contains("free card")
+                if isLimit {
+                    withAnimation(.spring(response: 0.4)) { showLimitAlert = true }
+                } else {
+                    PaywallPresenter.shared.presentForServerReject()
+                }
             } catch {
                 alertIsSuccess = false
                 alertMsg = error.localizedDescription

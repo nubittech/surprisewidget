@@ -5,6 +5,13 @@ struct User: Codable, Sendable {
     let email: String
     let name: String
     let pair_ids: [String]?
+    // Premium fields — optional so the client stays forward/backward
+    // compatible with older backend builds during rollout.
+    let is_premium: Bool?
+    let premium_until: String?
+
+    /// Convenience — treats missing flag as `false` (free tier default).
+    var isPremium: Bool { is_premium == true }
 }
 
 struct TokenResponse: Codable, Sendable {
