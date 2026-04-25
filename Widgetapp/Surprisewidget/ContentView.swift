@@ -42,9 +42,13 @@ struct ContentView: View {
         }
         .sheet(
             isPresented: $paywall.isPresenting,
-            onDismiss: { paywall.handleDismiss() }
+            onDismiss: {
+                Analytics.paywallDismissed(converted: StoreKitManager.shared.isPurchased)
+                paywall.handleDismiss()
+            }
         ) {
             PremiumView()
+                .onAppear { Analytics.paywallShown(trigger: paywall.currentTrigger) }
         }
         .preferredColorScheme(.light)
     }

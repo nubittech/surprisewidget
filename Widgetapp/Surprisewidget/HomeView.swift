@@ -1048,6 +1048,7 @@ struct HomeView: View {
                 // Present the "who are they to you" intermezzo before we
                 // hand off to the tutorial congrats / widget setup. That
                 // screen's onComplete re-enters the normal post-accept flow.
+                Analytics.friendAdded()
                 pickerPairId = resp.pair_id
                 pickerPartnerName = partnerDisplay
                 showRelationshipPicker = true

@@ -2,16 +2,37 @@ import SwiftUI
 import UIKit
 import RevenueCat
 
+// Forces black status bar icons (time, battery, signal) across the whole app.
+class FixedDarkStatusBarViewController: UIViewController {
+    override var preferredStatusBarStyle: UIStatusBarStyle { .darkContent }
+}
+
 // MARK: - AppDelegate for Push Notifications
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Mixpanel — initialize before anything else
+        Analytics.initialize()
         // RevenueCat — configure before anything else
-        Purchases.configure(withAPIKey: "test_JbsCON1ohgYnM0PZefaMCknrGP")
-        // Uncomment below for verbose logs during development:
-        // Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: "appl_BnHqhjCFmbhIeRQYcxBJiAgCumx")
+        Purchases.logLevel = .debug
+
+        // If notification permission was previously granted, re-register on
+        // every launch. iOS issues `didRegisterForRemoteNotifications` with
+        // the current APNs token, which we then ship to the backend so silent
+        // pushes (→ widget refresh) keep working after reinstall / token
+        // rotation / first login. If the user hasn't granted yet, this is a
+        // no-op and won't trigger any prompt.
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            if settings.authorizationStatus == .authorized
+                || settings.authorizationStatus == .provisional {
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            }
+        }
         return true
     }
 
@@ -53,6 +74,13 @@ struct WidgetappApp: App {
         WindowGroup {
             ContentView()
                 .environment(auth)
+                // The UI is designed against a fixed light palette (cream
+                // backgrounds, dark purple text). Honoring the system dark
+                // appearance inverts any element that falls back to Apple's
+                // default styling (alerts, sheets, default Text colors),
+                // which breaks contrast and hides copy entirely. Lock the
+                // whole app to light mode.
+                .preferredColorScheme(.light)
         }
     }
 }

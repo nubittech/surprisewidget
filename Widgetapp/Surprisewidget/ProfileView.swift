@@ -86,7 +86,10 @@ struct ProfileView: View {
                                     // sheet — the invite sheet would just produce a code
                                     // the backend now refuses to hand out.
                                     if !StoreKitManager.shared.isPurchased && friends.count >= 2 {
-                                        PaywallPresenter.shared.gate { showInviteSheet = true }
+                                        PaywallPresenter.shared.gate(
+                                            { showInviteSheet = true },
+                                            trigger: .friendLimit
+                                        )
                                     } else {
                                         showInviteSheet = true
                                     }
@@ -321,6 +324,7 @@ struct ProfileView: View {
                 // saveFriends inside loadFriends will also run purgeOrphanCards,
                 // but we reload widgets explicitly so the removal is visible now.
                 SharedDataManager.shared.reloadWidgets()
+                Analytics.friendRemoved()
             } catch {
                 errorMsg = error.localizedDescription
                 showError = true

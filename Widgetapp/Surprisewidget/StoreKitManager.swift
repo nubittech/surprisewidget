@@ -55,12 +55,15 @@ class StoreKitManager {
             return
         }
         await MainActor.run { isLoading = true; errorMessage = nil }
+        Analytics.purchaseStarted()
         do {
             let result = try await Purchases.shared.purchase(package: pkg)
             await applyCustomerInfo(result.customerInfo)
             await MainActor.run { isLoading = false }
             await syncEntitlementWithBackend()
+            if isPurchased { Analytics.purchaseCompleted(productId: pkg.storeProduct.productIdentifier) }
         } catch {
+            Analytics.purchaseFailed(reason: error.localizedDescription)
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 isLoading = false
@@ -72,16 +75,19 @@ class StoreKitManager {
 
     func restorePurchases() async {
         await MainActor.run { isLoading = true; errorMessage = nil }
+        Analytics.restoreTapped()
         do {
             let info = try await Purchases.shared.restorePurchases()
             await applyCustomerInfo(info)
             let active = isPurchased
+            Analytics.restoreCompleted(success: active)
             await MainActor.run {
                 isLoading = false
                 if !active { errorMessage = "No previous purchase found." }
             }
             await syncEntitlementWithBackend()
         } catch {
+            Analytics.restoreCompleted(success: false)
             await MainActor.run {
                 errorMessage = error.localizedDescription
                 isLoading = false

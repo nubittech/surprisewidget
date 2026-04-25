@@ -17,6 +17,8 @@ final class PaywallPresenter {
 
     /// Bound to the ContentView-level sheet.
     var isPresenting = false
+    /// Tracks what caused the paywall to open — read by ContentView.onAppear.
+    private(set) var currentTrigger: PaywallTrigger = .serverReject
 
     private var pendingAction: (() -> Void)?
 
@@ -24,19 +26,21 @@ final class PaywallPresenter {
 
     /// Gate an action behind premium. Runs immediately if already premium,
     /// otherwise opens the paywall and re-runs on successful purchase.
-    func gate(_ action: @escaping () -> Void) {
+    func gate(_ action: @escaping () -> Void,
+              trigger: PaywallTrigger = .serverReject) {
         if StoreKitManager.shared.isPurchased {
             action()
             return
         }
         pendingAction = action
+        currentTrigger = trigger
         isPresenting = true
     }
 
-    /// Force-present the paywall without a pending action. Used by APIService
-    /// when the backend returns 402 Payment Required.
-    func presentForServerReject() {
+    /// Force-present the paywall without a pending action.
+    func presentForServerReject(trigger: PaywallTrigger = .serverReject) {
         pendingAction = nil
+        currentTrigger = trigger
         isPresenting = true
     }
 

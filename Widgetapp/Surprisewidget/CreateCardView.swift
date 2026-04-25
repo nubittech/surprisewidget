@@ -766,7 +766,11 @@ struct CreateCardView: View {
                                     if StoreKitManager.shared.isPurchased {
                                         background = bg
                                     } else {
-                                        PaywallPresenter.shared.gate { background = bg }
+                                        Analytics.premiumBackgroundTapped()
+                                        PaywallPresenter.shared.gate(
+                                            { background = bg },
+                                            trigger: .premiumBackground
+                                        )
                                     }
                                 }
                             }
@@ -793,6 +797,7 @@ struct CreateCardView: View {
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         selectedStickerCategory = category
                                     }
+                                    Analytics.stickerCategoryViewed(name: category.name, isPremium: isLocked)
                                 }) {
                                     HStack(spacing: 6) {
                                         Image(systemName: category.icon)
@@ -834,11 +839,11 @@ struct CreateCardView: View {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 50))], spacing: 16) {
                                 ForEach(category.items, id: \.self) { item in
                                     Button(action: {
-                                        // Premium category: open paywall when user
-                                        // taps to add. After purchase the sticker
-                                        // is placed automatically.
                                         if categoryLocked {
-                                            PaywallPresenter.shared.gate { addStickerItem(item) }
+                                            PaywallPresenter.shared.gate(
+                                                { addStickerItem(item) },
+                                                trigger: .premiumSticker
+                                            )
                                         } else {
                                             addStickerItem(item)
                                         }
@@ -1172,6 +1177,16 @@ struct CreateCardView: View {
                 // should continue showing cards received FROM their partner.
                 SharedDataManager.shared.reloadWidgets()
 
+                // Analytics
+                let bgType = background.hasPrefix("img:") ? "image" : "color"
+                let stickerCount = elements.filter { $0.type == "sticker" || ($0.type == "image" && $0.content.hasPrefix("stk_")) }.count
+                let hasText = elements.contains { $0.type == "text" }
+                let hasTextBox = elements.contains { $0.type == "image" && $0.content.hasPrefix("textbox_") }
+                Analytics.cardSendSuccess(backgroundType: bgType,
+                                          stickerCount: stickerCount,
+                                          hasText: hasText,
+                                          hasTextBox: hasTextBox)
+
                 alertIsSuccess = true
                 alertMsg = ""
                 withAnimation(.spring(response: 0.4)) { showAlert = true }
@@ -1196,9 +1211,10 @@ struct CreateCardView: View {
                               msg.lowercased().contains("daily") ||
                               msg.lowercased().contains("free card")
                 if isLimit {
+                    Analytics.dailyLimitHit()
                     withAnimation(.spring(response: 0.4)) { showLimitAlert = true }
                 } else {
-                    PaywallPresenter.shared.presentForServerReject()
+                    PaywallPresenter.shared.presentForServerReject(trigger: .serverReject)
                 }
             } catch {
                 alertIsSuccess = false
