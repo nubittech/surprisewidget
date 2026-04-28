@@ -107,6 +107,10 @@ class CreateCardRequest(BaseModel):
     pair_id: str  # which friend to send to
     background: str
     elements: List[CardElement]
+    music_url: Optional[str] = None
+    music_title: Optional[str] = None
+    music_artist: Optional[str] = None
+    music_artwork: Optional[str] = None
 
 class CardResponse(BaseModel):
     id: str
@@ -116,6 +120,10 @@ class CardResponse(BaseModel):
     background: str
     elements: List[dict]
     created_at: str
+    music_url: Optional[str] = None
+    music_title: Optional[str] = None
+    music_artist: Optional[str] = None
+    music_artwork: Optional[str] = None
 
 class LimitResponse(BaseModel):
     used: int
@@ -819,7 +827,11 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
         "receiver_id": receiver_id,
         "background": req.background,
         "elements": [e.dict() for e in req.elements],
-        "created_at": datetime.now(timezone.utc)
+        "created_at": datetime.now(timezone.utc),
+        "music_url":    req.music_url,
+        "music_title":  req.music_title,
+        "music_artist": req.music_artist,
+        "music_artwork": req.music_artwork,
     }
     result = await db.cards.insert_one(card_doc)
 
@@ -843,7 +855,11 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
         sender_name=card_doc["sender_name"],
         background=card_doc["background"],
         elements=card_doc["elements"],
-        created_at=card_doc["created_at"].isoformat()
+        created_at=card_doc["created_at"].isoformat(),
+        music_url=card_doc.get("music_url"),
+        music_title=card_doc.get("music_title"),
+        music_artist=card_doc.get("music_artist"),
+        music_artwork=card_doc.get("music_artwork"),
     )
 
 @api_router.get("/cards/latest")
@@ -871,7 +887,11 @@ async def get_latest_card(user: dict = Depends(get_current_user), pair_id: Optio
             "sender_name": card.get("sender_name", ""),
             "background": card["background"],
             "elements": card["elements"],
-            "created_at": card["created_at"].isoformat() if isinstance(card["created_at"], datetime) else card["created_at"]
+            "created_at": card["created_at"].isoformat() if isinstance(card["created_at"], datetime) else card["created_at"],
+            "music_url":    card.get("music_url"),
+            "music_title":  card.get("music_title"),
+            "music_artist": card.get("music_artist"),
+            "music_artwork": card.get("music_artwork"),
         }
     }
 
