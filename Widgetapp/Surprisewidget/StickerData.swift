@@ -137,6 +137,8 @@ let STICKER_CATEGORIES: [StickerCategory] = [
             .image("stk_layer_16"),
             .image("stk_layer_18"),
             .image("stk_layer_20"),
+            .image("stk_layer_21"),
+            .image("stk_layer_22"),
         ]
     ),
     StickerCategory(
