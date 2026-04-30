@@ -111,6 +111,7 @@ class CreateCardRequest(BaseModel):
     music_title: Optional[str] = None
     music_artist: Optional[str] = None
     music_artwork: Optional[str] = None
+    music_apple_id: Optional[str] = None
 
 class CardResponse(BaseModel):
     id: str
@@ -124,6 +125,7 @@ class CardResponse(BaseModel):
     music_title: Optional[str] = None
     music_artist: Optional[str] = None
     music_artwork: Optional[str] = None
+    music_apple_id: Optional[str] = None
 
 class LimitResponse(BaseModel):
     used: int
@@ -212,6 +214,10 @@ def build_user_response(user: dict, user_id: str, email: str, name: str, pair_id
         is_premium=is_user_premium(user),
         premium_until=user_premium_until_iso(user),
     )
+
+def require_admin(user: dict) -> None:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 # ---------------------------------------------------------------------------
 # Spam / rate-limit helpers
@@ -479,6 +485,11 @@ class SyncEntitlementRequest(BaseModel):
     expiration_date: Optional[str] = None
     product_id: Optional[str] = None
 
+class AdminPremiumRequest(BaseModel):
+    email: EmailStr
+    is_premium: bool = True
+    premium_until: Optional[str] = None
+
 @api_router.post("/users/me/sync-entitlement", response_model=UserResponse)
 async def sync_entitlement(
     req: SyncEntitlementRequest,
@@ -519,6 +530,50 @@ async def sync_entitlement(
         user["id"],
         user["email"],
         fresh.get("name", user.get("name", "")),
+        [str(p) for p in fresh.get("pair_ids", []) if p],
+    )
+
+@api_router.post("/admin/users/premium", response_model=UserResponse)
+async def admin_set_user_premium(
+    req: AdminPremiumRequest,
+    admin: dict = Depends(get_current_user),
+):
+    require_admin(admin)
+
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    premium_until: Optional[datetime] = None
+    if req.premium_until:
+        try:
+            raw = req.premium_until.replace("Z", "+00:00")
+            premium_until = datetime.fromisoformat(raw)
+            if premium_until.tzinfo is None:
+                premium_until = premium_until.replace(tzinfo=timezone.utc)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid premium_until")
+
+    update = {
+        "is_premium": req.is_premium,
+        "premium_until": premium_until if req.is_premium else None,
+        "premium_product_id": "manual_admin_grant" if req.is_premium else None,
+        "premium_synced_at": datetime.now(timezone.utc),
+        "premium_updated_by": str(admin["_id"]),
+    }
+
+    fresh = await db.users.find_one_and_update(
+        {"_id": user["_id"]},
+        {"$set": update},
+        return_document=ReturnDocument.AFTER,
+    )
+    fresh = fresh or user
+    return build_user_response(
+        fresh,
+        str(fresh["_id"]),
+        fresh["email"],
+        fresh.get("name", ""),
         [str(p) for p in fresh.get("pair_ids", []) if p],
     )
 
@@ -832,6 +887,7 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
         "music_title":  req.music_title,
         "music_artist": req.music_artist,
         "music_artwork": req.music_artwork,
+        "music_apple_id": req.music_apple_id,
     }
     result = await db.cards.insert_one(card_doc)
 
@@ -860,6 +916,7 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
         music_title=card_doc.get("music_title"),
         music_artist=card_doc.get("music_artist"),
         music_artwork=card_doc.get("music_artwork"),
+        music_apple_id=card_doc.get("music_apple_id"),
     )
 
 @api_router.get("/cards/latest")
@@ -892,6 +949,7 @@ async def get_latest_card(user: dict = Depends(get_current_user), pair_id: Optio
             "music_title":  card.get("music_title"),
             "music_artist": card.get("music_artist"),
             "music_artwork": card.get("music_artwork"),
+            "music_apple_id": card.get("music_apple_id"),
         }
     }
 
