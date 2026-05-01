@@ -517,10 +517,14 @@ async def sync_entitlement(
         update["premium_product_id"] = req.product_id
         update["premium_synced_at"] = datetime.now(timezone.utc)
     else:
-        # Client reports no active entitlement. Keep premium_until in place so
-        # a client with a stale/offline RevenueCat cache can't accidentally
-        # downgrade an active subscription — server re-evaluates via is_user_premium.
-        update["is_premium"] = False
+        # LIFETIME MODEL: once a user is premium (paid OR admin-granted), they
+        # stay premium forever. The client sometimes reports `is_active: false`
+        # spuriously — RevenueCat cache cold-start, transient network failure,
+        # sandbox quirks, app reinstall before receipt restore — and a real
+        # paid customer must NEVER lose access because of that. Only the admin
+        # endpoint may revoke entitlement explicitly.
+        #
+        # We still record the heartbeat so we can debug stale clients later.
         update["premium_synced_at"] = datetime.now(timezone.utc)
 
     await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": update})
