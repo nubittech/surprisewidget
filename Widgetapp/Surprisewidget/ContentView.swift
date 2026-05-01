@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let premiumDidCompleteNavigateHome = Notification.Name("premiumDidCompleteNavigateHome")
+}
+
 struct ContentView: View {
     @Environment(AuthManager.self) private var auth
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
@@ -116,6 +120,10 @@ struct MainTabView: View {
         }
         .fullScreenCover(isPresented: $showCreateCard) {
             CreateCardView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .premiumDidCompleteNavigateHome)) { _ in
+            showCreateCard = false
+            selectedTab = 0
         }
     }
     

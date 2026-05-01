@@ -54,4 +54,10 @@ final class PaywallPresenter {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { a() }
         }
     }
+
+    /// Used by the post-purchase success screen when the desired destination is
+    /// the home screen instead of replaying the premium action that opened it.
+    func cancelPendingAction() {
+        pendingAction = nil
+    }
 }

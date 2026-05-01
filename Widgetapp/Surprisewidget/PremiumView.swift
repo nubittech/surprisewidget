@@ -199,43 +199,17 @@ struct PremiumView: View {
                         .padding(.top, 8)
                         .padding(.bottom, 40)
                 }
+                .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? 560 : .infinity)
+                .frame(maxWidth: .infinity)
             }
 
-            // Success overlay
             if showSuccess {
-                ZStack {
-                    Color.black.opacity(0.5).ignoresSafeArea()
-                    VStack(spacing: 20) {
-                        Text("🎉")
-                            .font(.system(size: 72))
-                        Text("Welcome to Premium!")
-                            .font(.system(size: 26, weight: .heavy, design: .rounded))
-                            .foregroundStyle(navy)
-                        Text("Now you can send unlimited surprises!")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(navy.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                        Button(action: { dismiss() }) {
-                            Text("Let's Go! 🚀")
-                                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                                .foregroundStyle(navy)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(greenBox)
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(navy, lineWidth: 4))
-                                .shadow(color: navy, radius: 0, x: 4, y: 4)
-                        }
-                        .padding(.horizontal, 32)
-                    }
-                    .padding(32)
-                    .background(white)
-                    .clipShape(RoundedRectangle(cornerRadius: 32))
-                    .overlay(RoundedRectangle(cornerRadius: 32).stroke(navy, lineWidth: 4))
-                    .shadow(color: navy, radius: 0, x: 6, y: 6)
-                    .padding(.horizontal, 24)
+                PremiumPurchaseSuccessView {
+                    PaywallPresenter.shared.cancelPendingAction()
+                    NotificationCenter.default.post(name: .premiumDidCompleteNavigateHome, object: nil)
+                    dismiss()
                 }
-                .transition(.opacity.combined(with: .scale))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.4), value: showSuccess)
@@ -245,6 +219,111 @@ struct PremiumView: View {
             Text(store.errorMessage ?? "An error occurred.")
         }
         .task { await store.fetchOfferings() }
+    }
+}
+
+private struct PremiumPurchaseSuccessView: View {
+    let onContinue: () -> Void
+
+    private let navy = Color(hex: "#2D1E5F")
+    private let purple = Color(hex: "#9D6BFF")
+    private let purpleBox = Color(hex: "#CBB3FF")
+    private let yellowBox = Color(hex: "#FFD666")
+    private let greenBox = Color(hex: "#98FFD9")
+    private let white = Color.white
+
+    var body: some View {
+        ZStack {
+            Color(hex: "#FFF5FF").ignoresSafeArea()
+
+            VStack(spacing: 28) {
+                Spacer(minLength: 24)
+
+                ZStack {
+                    Circle()
+                        .fill(greenBox)
+                        .frame(width: 122, height: 122)
+                        .overlay(Circle().stroke(navy, lineWidth: 5))
+                        .shadow(color: navy, radius: 0, x: 6, y: 6)
+
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 54, weight: .black, design: .rounded))
+                        .foregroundStyle(navy)
+                }
+
+                VStack(spacing: 10) {
+                    Text("Premium Activated")
+                        .font(.system(size: 31, weight: .heavy, design: .rounded))
+                        .foregroundStyle(navy)
+                        .multilineTextAlignment(.center)
+
+                    Text("All stickers, backgrounds, friends, and future features are now unlocked.")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(navy.opacity(0.68))
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 12)
+                }
+
+                VStack(spacing: 12) {
+                    successRow(icon: "infinity", text: "Unlimited cards")
+                    successRow(icon: "paintbrush.pointed.fill", text: "Premium design tools")
+                    successRow(icon: "person.3.fill", text: "More friends and sharing")
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 18)
+                .background(white)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(navy, lineWidth: 3))
+                .shadow(color: navy, radius: 0, x: 4, y: 4)
+                .padding(.horizontal, 22)
+
+                Spacer(minLength: 16)
+
+                Button(action: onContinue) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("Go to Home")
+                            .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    }
+                    .foregroundStyle(navy)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 60)
+                    .background(yellowBox)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(navy, lineWidth: 4))
+                    .shadow(color: navy, radius: 0, x: 4, y: 4)
+                }
+                .padding(.horizontal, 22)
+                .padding(.bottom, 28)
+            }
+            .frame(maxWidth: UIDevice.current.userInterfaceIdiom == .pad ? 560 : .infinity)
+        }
+    }
+
+    private func successRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(purpleBox)
+                .frame(width: 38, height: 38)
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(navy)
+                )
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(navy, lineWidth: 2))
+
+            Text(text)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundStyle(navy)
+
+            Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 21, weight: .bold))
+                .foregroundStyle(purple)
+        }
     }
 }
 
