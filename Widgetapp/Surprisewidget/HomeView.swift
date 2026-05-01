@@ -313,17 +313,20 @@ struct HomeView: View {
             Spacer()
 
             // Premium gift button
+            let hasPremium = auth.user?.isPremium == true || StoreKitManager.shared.isPurchased
             Button(action: { showPremium = true }) {
                 HStack(spacing: 8) {
-                    Text("Unlock all features")
+                    Text(hasPremium ? "Premium Active" : "Unlock all features")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
                         .foregroundStyle(NB.outline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
                     Circle()
-                        .fill(NB.tertiaryBox)
+                        .fill(hasPremium ? NB.secondaryBox : NB.tertiaryBox)
                         .frame(width: 36, height: 36)
                         .overlay(
-                            Image(systemName: "gift.fill")
+                            Image(systemName: hasPremium ? "checkmark.seal.fill" : "gift.fill")
                                 .font(.system(size: 16))
                                 .foregroundStyle(NB.outline)
                         )
@@ -1102,6 +1105,11 @@ struct CardPreviewView: View {
     /// the raw `card.sender_name` baked in at send time.
     var displayName: String? = nil
     private let baseSize: Double = 300.0
+    private var hasMusic: Bool {
+        [card.music_url, card.music_apple_id].contains { value in
+            value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -1134,14 +1142,26 @@ struct CardPreviewView: View {
                             .position(x: el.x * fillScale + offsetX,
                                       y: el.y * fillScale + offsetY)
                     } else if el.type == "image" {
-                        Image(el.content)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: (el.size ?? 40) * fillScale,
-                                   height: (el.size ?? 40) * fillScale)
-                            .rotationEffect(.degrees(el.rotation ?? 0))
-                            .position(x: el.x * fillScale + offsetX,
-                                      y: el.y * fillScale + offsetY)
+                        let dim = (el.size ?? 40) * fillScale
+                        Group {
+                            if el.content.hasPrefix("photo:"),
+                               let data = Data(base64Encoded: String(el.content.dropFirst(6))),
+                               let ui = UIImage(data: data) {
+                                Image(uiImage: ui)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: dim, height: dim)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10 * fillScale))
+                            } else {
+                                Image(el.content)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: dim, height: dim)
+                            }
+                        }
+                        .rotationEffect(.degrees(el.rotation ?? 0))
+                        .position(x: el.x * fillScale + offsetX,
+                                  y: el.y * fillScale + offsetY)
                     } else {
                         Text(el.content)
                             .font(.system(size: (el.size ?? 40) * fillScale))
@@ -1150,12 +1170,24 @@ struct CardPreviewView: View {
                                       y: el.y * fillScale + offsetY)
                     }
                 }
-                // Prefer the recipient's custom nickname over the raw
-                // sender_name that was stamped on the card at send time.
-                if let name = (displayName?.isEmpty == false ? displayName : card.sender_name),
-                   !name.isEmpty {
-                    VStack {
-                        Spacer()
+                // Bottom overlay: music bar + sender pill
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    // Music bar — plays in-app via MusicManager (full track
+                    // if Apple Music subscribed, otherwise 30s preview).
+                    if hasMusic {
+                        HStack {
+                            Spacer()
+                            InAppMusicBar(card: card)
+                        }
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 4)
+                    }
+
+                    // Sender pill
+                    if let name = (displayName?.isEmpty == false ? displayName : card.sender_name),
+                       !name.isEmpty {
                         HStack {
                             Spacer()
                             Text("💌 \(name)")
@@ -1233,5 +1265,110 @@ struct CreateCardWrapperView: View {
     var body: some View {
         CreateCardView(preselectedFriend: preselectedFriend)
             .navigationBarHidden(true)
+    }
+}
+
+// MARK: - In-App Music Bar (overlaid on card)
+
+struct InAppMusicBar: View {
+    let card: Card
+    @ObservedObject private var music = MusicManager.shared
+
+    private var isThisCardPlaying: Bool {
+        music.isPlaying && music.currentPairId == (card.pair_id ?? card.id)
+    }
+
+    var body: some View {
+        Button {
+            Task {
+                await MusicManager.shared.smartPlay(
+                    previewUrl:   card.music_url,
+                    appleMusicId: card.music_apple_id,
+                    pairId:       card.pair_id ?? card.id,
+                    title:        card.music_title,
+                    artist:       card.music_artist
+                )
+            }
+        } label: {
+            Image(systemName: isThisCardPlaying ? "pause.circle.fill" : "play.circle.fill")
+                .font(.system(size: 32))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(.black.opacity(0.36))
+                .clipShape(Circle())
+                .shadow(radius: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Music Mini Player (legacy — unused)
+
+struct MusicMiniPlayer: View {
+    let title: String
+    let artist: String
+    let artworkUrl: String?
+    let isPlaying: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Album art
+            AsyncImage(url: URL(string: artworkUrl ?? "")) { phase in
+                if case .success(let img) = phase {
+                    img.resizable().scaledToFill()
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.purple.opacity(0.2))
+                        .overlay(Image(systemName: "music.note")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.purple))
+                }
+            }
+            .frame(width: 48, height: 48)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // Track info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                Text(artist)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                // Progress bar (static — 30s preview)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(.systemGray5)).frame(height: 3)
+                        Capsule()
+                            .fill(Color.purple)
+                            .frame(width: isPlaying ? geo.size.width : 0, height: 3)
+                            .animation(.linear(duration: 30), value: isPlaying)
+                    }
+                }
+                .frame(height: 3)
+            }
+
+            Spacer()
+
+            // Play / Pause
+            Button(action: onToggle) {
+                Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.purple)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.purple.opacity(0.25), lineWidth: 1.5)
+        )
     }
 }

@@ -146,35 +146,63 @@ struct PremiumView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
 
-                    // CTA — Purchase button
-                    Button(action: {
-                        Task {
-                            await store.purchase()
-                            if store.isPurchased { withAnimation { showSuccess = true } }
-                            if store.errorMessage != nil { showError = true }
-                        }
-                    }) {
-                        HStack(spacing: 10) {
-                            if store.isLoading {
-                                ProgressView().tint(navy)
-                            } else {
-                                Image(systemName: "lock.open.fill")
+                    if store.isPurchased {
+                        Button(action: {
+                            PaywallPresenter.shared.cancelPendingAction()
+                            NotificationCenter.default.post(name: .premiumDidCompleteNavigateHome, object: nil)
+                            dismiss()
+                        }) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 18, weight: .bold))
-                                Text("Unlock All Features · \(priceString)")
+                                Text("Premium Active · Go Home")
                                     .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.78)
                             }
+                            .foregroundStyle(navy)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(greenBox)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(navy, lineWidth: 4))
+                            .shadow(color: navy, radius: 0, x: 4, y: 4)
                         }
-                        .foregroundStyle(navy)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 60)
-                        .background(yellowBox)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(navy, lineWidth: 4))
-                        .shadow(color: navy, radius: 0, x: 4, y: 4)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                    } else {
+                        // CTA — Purchase button
+                        Button(action: {
+                            Task {
+                                await store.purchase()
+                                if store.isPurchased { withAnimation { showSuccess = true } }
+                                if store.errorMessage != nil { showError = true }
+                            }
+                        }) {
+                            HStack(spacing: 10) {
+                                if store.isLoading {
+                                    ProgressView().tint(navy)
+                                } else {
+                                    Image(systemName: "lock.open.fill")
+                                        .font(.system(size: 18, weight: .bold))
+                                    Text("Unlock All Features · \(priceString)")
+                                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.72)
+                                }
+                            }
+                            .foregroundStyle(navy)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(yellowBox)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(navy, lineWidth: 4))
+                            .shadow(color: navy, radius: 0, x: 4, y: 4)
+                        }
+                        .disabled(store.isLoading)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
                     }
-                    .disabled(store.isLoading)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
 
                     // Restore Purchases — required by Apple
                     Button(action: {
