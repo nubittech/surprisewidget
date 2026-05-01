@@ -3,6 +3,7 @@ import StoreKit
 
 struct PremiumView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AuthManager.self) private var auth
     private let store = StoreKitManager.shared
     @State private var showSuccess = false
     @State private var showError = false
@@ -29,6 +30,10 @@ struct PremiumView: View {
     // Formatted price from StoreKit, fallback to $5.99
     var priceString: String {
         store.priceString
+    }
+
+    var hasPremium: Bool {
+        store.isPurchased || auth.user?.isPremium == true
     }
 
     var body: some View {
@@ -146,7 +151,7 @@ struct PremiumView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
 
-                    if store.isPurchased {
+                    if hasPremium {
                         Button(action: {
                             PaywallPresenter.shared.cancelPendingAction()
                             NotificationCenter.default.post(name: .premiumDidCompleteNavigateHome, object: nil)
