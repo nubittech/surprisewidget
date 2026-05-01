@@ -313,7 +313,7 @@ struct HomeView: View {
             Spacer()
 
             // Premium gift button
-            let hasPremium = auth.user?.isPremium == true || StoreKitManager.shared.isPurchased
+            let hasPremium = PaywallPresenter.shared.hasPremium
             Button(action: { showPremium = true }) {
                 HStack(spacing: 8) {
                     Text(hasPremium ? "Premium Active" : "Unlock all features")

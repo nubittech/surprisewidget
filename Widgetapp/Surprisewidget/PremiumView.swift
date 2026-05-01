@@ -33,7 +33,7 @@ struct PremiumView: View {
     }
 
     var hasPremium: Bool {
-        store.isPurchased || auth.user?.isPremium == true
+        PaywallPresenter.shared.hasPremium
     }
 
     var body: some View {

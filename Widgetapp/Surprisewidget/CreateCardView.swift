@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import PhotosUI
 
 // MARK: - Draggable Element View
 
@@ -30,11 +31,24 @@ struct DraggableElementView: View {
                         .foregroundStyle(Color(hex: element.color ?? "#1F2937"))
                 }
             } else if element.type == "image" {
-                Image(element.content)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: CGFloat(element.size ?? 40) * scale,
-                           height: CGFloat(element.size ?? 40) * scale)
+                let dim = CGFloat(element.size ?? 40) * scale
+                if element.content.hasPrefix("photo:"),
+                   let data = Data(base64Encoded: String(element.content.dropFirst(6))),
+                   let ui = UIImage(data: data) {
+                    // User-uploaded photo — fill a square frame with 10pt
+                    // rounded corners (scaled to canvas) so photos always look
+                    // polished regardless of original aspect ratio.
+                    Image(uiImage: ui)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: dim, height: dim)
+                        .clipShape(RoundedRectangle(cornerRadius: 10 * scale))
+                } else {
+                    Image(element.content)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: dim, height: dim)
+                }
             } else {
                 Text(element.content)
                     .font(.system(size: CGFloat(element.size ?? 40) * scale))
@@ -129,6 +143,7 @@ struct CreateCardView: View {
     private let TEXT_BOXES = [
         "textbox_1", "textbox_2", "textbox_3",
         "textbox_4", "textbox_5", "textbox_6",
+        "new1", "new2", "new3", "new4",
     ]
     @State private var sending = false
     @State private var alertMsg = ""
@@ -145,7 +160,19 @@ struct CreateCardView: View {
     // Widget safe-zone overlay toggle
     @State private var showSafeZones: Bool = false
 
-    enum ToolTab { case none, bg, sticker, text }
+    enum ToolTab { case none, bg, sticker, text, photo, music }
+
+    // PhotosPicker selection for the new "Photo" tool. We compress + base64
+    // encode the chosen image so the card payload stays self-contained
+    // (no separate upload pipeline), then store it as an "image" element
+    // with a `photo:` content prefix so all renderers can detect it.
+    @State private var photoItem: PhotosPickerItem? = nil
+    @State private var showPhotoPicker = false
+
+    // Music state — one track per card
+    @State private var selectedMusic: iTunesTrack? = nil
+    @State private var showMusicSearch = false
+    @ObservedObject private var music = MusicManager.shared
 
     var selectedFriend: Friend? {
         friends.first { $0.pair_id == selectedPairId }
@@ -203,6 +230,37 @@ struct CreateCardView: View {
                     }
                     if showSafeZones {
                         safeZoneOverlay(scale: scale)
+                    }
+                    // Music control — keep the canvas quiet: just one play/pause
+                    // button in the lower-right when a track is attached.
+                    if let m = selectedMusic {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Button {
+                                    Task {
+                                        await MusicManager.shared.smartPlay(
+                                            previewUrl: m.previewUrl,
+                                            appleMusicId: String(m.trackId),
+                                            pairId: "draft-\(m.trackId)",
+                                            title: m.trackName,
+                                            artist: m.artistName
+                                        )
+                                    }
+                                } label: {
+                                    Image(systemName: music.isPlaying && music.currentPairId == "draft-\(m.trackId)" ? "pause.circle.fill" : "play.circle.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(.black.opacity(0.36))
+                                        .clipShape(Circle())
+                                        .shadow(radius: 2)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(10)
+                        }
                     }
                 }
                 .frame(width: canvasSize, height: canvasSize)
@@ -682,12 +740,14 @@ struct CreateCardView: View {
     func toolbar(canvasSize: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
-                toolTabBtn(icon: "paintpalette", label: "Background", tab: .bg)
+                toolTabBtn(icon: "paintpalette", label: "BG", tab: .bg)
                 toolTabBtn(icon: "face.smiling", label: "Sticker", tab: .sticker)
                 toolTabBtn(icon: "textformat", label: "Text", tab: .text, action: {
                     activeTab = .text
                     showTextSheet = true
                 })
+                photoTabButton
+                musicTabButton
                 Button(action: deleteSelected) {
                     VStack(spacing: 2) {
                         Image(systemName: "trash")
@@ -696,6 +756,8 @@ struct CreateCardView: View {
                         Text("Delete")
                             .font(.system(size: 11, weight: .heavy))
                             .foregroundStyle(selectedId != nil ? Color(hex: "#FB7185") : cTextMuted)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -752,7 +814,7 @@ struct CreateCardView: View {
                                                     lineWidth: 3
                                                 )
                                         )
-                                    if !StoreKitManager.shared.isPurchased {
+                                    if !PaywallPresenter.shared.hasPremium {
                                         Image(systemName: "lock.fill")
                                             .font(.system(size: 10, weight: .black))
                                             .foregroundStyle(.white)
@@ -763,7 +825,7 @@ struct CreateCardView: View {
                                     }
                                 }
                                 .onTapGesture {
-                                    if StoreKitManager.shared.isPurchased {
+                                    if PaywallPresenter.shared.hasPremium {
                                         background = bg
                                     } else {
                                         Analytics.premiumBackgroundTapped()
@@ -790,7 +852,7 @@ struct CreateCardView: View {
                         HStack(spacing: 8) {
                             ForEach(STICKER_CATEGORIES) { category in
                                 let isSelected = selectedStickerCategory?.id == category.id
-                                let isLocked = category.isPremium && !StoreKitManager.shared.isPurchased
+                                let isLocked = category.isPremium && !PaywallPresenter.shared.hasPremium
                                 // Category is always tappable — user can browse premium stickers.
                                 // The paywall fires only when they attempt to ADD a sticker.
                                 Button(action: {
@@ -834,7 +896,7 @@ struct CreateCardView: View {
                     
                     // Sticker Listesi - Geniş Alan
                     if let category = selectedStickerCategory {
-                        let categoryLocked = category.isPremium && !StoreKitManager.shared.isPurchased
+                        let categoryLocked = category.isPremium && !PaywallPresenter.shared.hasPremium
                         ScrollView(.vertical, showsIndicators: false) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 50))], spacing: 16) {
                                 ForEach(category.items, id: \.self) { item in
@@ -914,6 +976,8 @@ struct CreateCardView: View {
                 Text(label)
                     .font(.system(size: 11, weight: .heavy))
                     .foregroundStyle(isActive ? cPurpleBorder : cTextMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
@@ -1071,6 +1135,138 @@ struct CreateCardView: View {
 
     // MARK: - Actions
 
+    // MARK: - Photo tab button
+    //
+    // Wraps a `PhotosPicker` in our existing toolTabBtn styling so it sits
+    // visually next to the other tool buttons. We keep the `activeTab` state
+    // synced for selection feedback even though there's no dedicated panel
+    // below the toolbar — the picker is a system sheet.
+    @ViewBuilder
+    var photoTabButton: some View {
+        let isActive = activeTab == .photo
+        PhotosPicker(selection: $photoItem, matching: .images, photoLibrary: .shared()) {
+            VStack(spacing: 2) {
+                Image(systemName: "photo.on.rectangle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isActive ? cPurpleBorder : cTextMuted)
+                Text("Photo")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(isActive ? cPurpleBorder : cTextMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isActive ? cPurpleLight : .clear)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(isActive ? cPurpleBorder : .clear, lineWidth: 3))
+        }
+        .onChange(of: photoItem) { _, newItem in
+            guard let newItem else { return }
+            activeTab = .photo
+            Task {
+                if let data = try? await newItem.loadTransferable(type: Data.self) {
+                    await MainActor.run {
+                        handlePickedPhoto(data: data)
+                    }
+                }
+                await MainActor.run {
+                    photoItem = nil
+                    activeTab = .none
+                }
+            }
+        }
+    }
+
+    // MARK: - Music tab button
+
+    @ViewBuilder
+    var musicTabButton: some View {
+        let isActive = activeTab == .music
+        let hasMusic = selectedMusic != nil
+        Button {
+            activeTab = .music
+            showMusicSearch = true
+        } label: {
+            VStack(spacing: 2) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: hasMusic ? "music.note.list" : "music.note")
+                        .font(.system(size: 22))
+                        .foregroundStyle(isActive || hasMusic ? cPurpleBorder : cTextMuted)
+                    if hasMusic {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+                Text("Music")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(isActive || hasMusic ? cPurpleBorder : cTextMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isActive ? cPurpleLight : .clear)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(isActive ? cPurpleBorder : .clear, lineWidth: 3))
+        }
+        .sheet(isPresented: $showMusicSearch) {
+            MusicSearchView(
+                onSelect: { track in
+                    selectedMusic = track
+                    showMusicSearch = false
+                    activeTab = .none
+                },
+                onDismiss: {
+                    showMusicSearch = false
+                    activeTab = .none
+                }
+            )
+        }
+    }
+
+    /// Compress the picked image to a reasonable size and add it to the
+    /// canvas as an "image" element with a `photo:` prefixed base64 content.
+    /// Keeping the photo embedded in the card payload (rather than uploading
+    /// to a separate storage service) means zero backend changes — the same
+    /// card document the widget already reads now carries the photo bytes
+    /// inline. Compression keeps payloads under ~150KB per photo.
+    func handlePickedPhoto(data: Data) {
+        guard let img = UIImage(data: data) else { return }
+
+        // Resize so the longest edge is at most 400px. A widget element renders
+        // at most ~200pt — even on a @3x device that's ~600px, but photos
+        // typically take a fraction of the canvas, so 400px is plenty without
+        // visible pixelation. Keeps base64 payloads at ~30-60KB each.
+        let maxDim: CGFloat = 400
+        let longest = max(img.size.width, img.size.height)
+        let factor = longest > maxDim ? maxDim / longest : 1
+        let newSize = CGSize(width: img.size.width * factor, height: img.size.height * factor)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        let resized = renderer.image { _ in
+            img.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        guard let jpeg = resized.jpegData(compressionQuality: 0.5) else { return }
+        let b64 = jpeg.base64EncodedString()
+
+        let el = CanvasElement(
+            id: UUID().uuidString,
+            type: "image",
+            content: "photo:" + b64,
+            x: 150 + Double.random(in: -20...20),
+            y: 150 + Double.random(in: -20...20),
+            size: 160
+        )
+        elements.append(el)
+        selectedId = el.id
+    }
+
     func addStickerItem(_ item: StickerItem) {
         let isLayer = item.content.hasPrefix("stk_layer_")
         let el = CanvasElement(
@@ -1154,7 +1350,7 @@ struct CreateCardView: View {
             showFriendPicker = true
             return
         }
-        guard !elements.isEmpty else {
+        guard !elements.isEmpty || selectedMusic != nil else {
             alertIsSuccess = false
             alertMsg = "Add at least one element to your card"
             withAnimation(.spring(response: 0.4)) { showAlert = true }
@@ -1167,10 +1363,25 @@ struct CreateCardView: View {
                     let pair_id: String
                     let background: String
                     let elements: [CanvasElement]
+                    let music_url: String?
+                    let music_title: String?
+                    let music_artist: String?
+                    let music_artwork: String?
+                    let music_apple_id: String?
                 }
+                let appleId = selectedMusic.map { String($0.trackId) }
                 let created: Card = try await APIService.shared.post(
                     "/cards/create",
-                    body: CreateBody(pair_id: pairId, background: background, elements: elements)
+                    body: CreateBody(
+                        pair_id: pairId,
+                        background: background,
+                        elements: elements,
+                        music_url:    selectedMusic?.previewUrl,   // 30s mp3 fallback
+                        music_title:  selectedMusic?.trackName,
+                        music_artist: selectedMusic?.artistName,
+                        music_artwork: selectedMusic?.artworkUrl100,
+                        music_apple_id: appleId
+                    )
                 )
                 // Reload so the receiver's widget refreshes via backend — do NOT
                 // write the sent card into the sender's cache; the sender's widget
@@ -1192,6 +1403,7 @@ struct CreateCardView: View {
                 withAnimation(.spring(response: 0.4)) { showAlert = true }
                 elements = []
                 selectedId = nil
+                selectedMusic = nil
                 background = BACKGROUNDS[0]   // reset to default color
 
                 // ── App Store review prompt ──────────────────────────────────
