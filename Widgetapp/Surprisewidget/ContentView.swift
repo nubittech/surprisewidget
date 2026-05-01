@@ -37,10 +37,13 @@ struct ContentView: View {
         }
         .task {
             await auth.initialize()
-            // Once we know we're authenticated, mirror the current RevenueCat
-            // entitlement to the backend so server-side gates are accurate.
+            // Once we know we're authenticated, fetch the latest RevenueCat
+            // CustomerInfo first, THEN mirror it to the backend. Calling
+            // sync before customer info loads would push `is_active: false`
+            // for real paying users and (until the backend started rejecting
+            // downgrades) would silently revoke their lifetime purchase.
             if auth.isAuthenticated {
-                await StoreKitManager.shared.syncEntitlementWithBackend()
+                await StoreKitManager.shared.updatePurchasedStatus()
                 await auth.refreshUser()
             }
         }

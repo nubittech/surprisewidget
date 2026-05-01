@@ -20,15 +20,27 @@ final class PaywallPresenter {
     /// Tracks what caused the paywall to open — read by ContentView.onAppear.
     private(set) var currentTrigger: PaywallTrigger = .serverReject
 
+    /// Last-known backend premium state. Mirrored from AuthManager so this
+    /// singleton can answer "is the user premium?" without taking an
+    /// AuthManager dependency. Updated whenever auth.user changes.
+    var backendIsPremium = false
+
     private var pendingAction: (() -> Void)?
 
     private init() {}
+
+    /// True when the user is premium by EITHER source — RevenueCat (paid via
+    /// App Store) or backend (admin-granted, or paid but RevenueCat hasn't
+    /// caught up yet). Either signal is sufficient to skip the paywall.
+    var hasPremium: Bool {
+        StoreKitManager.shared.isPurchased || backendIsPremium
+    }
 
     /// Gate an action behind premium. Runs immediately if already premium,
     /// otherwise opens the paywall and re-runs on successful purchase.
     func gate(_ action: @escaping () -> Void,
               trigger: PaywallTrigger = .serverReject) {
-        if StoreKitManager.shared.isPurchased {
+        if hasPremium {
             action()
             return
         }
@@ -49,7 +61,7 @@ final class PaywallPresenter {
     func handleDismiss() {
         let action = pendingAction
         pendingAction = nil
-        if StoreKitManager.shared.isPurchased, let a = action {
+        if hasPremium, let a = action {
             // Slight delay so the sheet is fully gone before UI changes.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { a() }
         }

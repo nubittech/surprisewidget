@@ -14,6 +14,12 @@ class StoreKitManager {
     /// ISO-8601 expiration date from RevenueCat, or nil for lifetime / inactive.
     private(set) var expirationISO: String?
     private(set) var productIdentifier: String?
+    /// Becomes true the first time we successfully read CustomerInfo from
+    /// RevenueCat. Until then, `isPurchased` is just the optimistic default
+    /// (false) and we MUST NOT push that to the backend — doing so would
+    /// downgrade real paying users every time the app cold-starts before
+    /// RevenueCat finishes its first network round-trip.
+    private(set) var customerInfoLoaded = false
 
     // The lifetime package fetched from RevenueCat offerings
     private(set) var lifetimePackage: Package?
@@ -130,14 +136,26 @@ class StoreKitManager {
             isPurchased = active
             expirationISO = iso
             productIdentifier = pid
+            customerInfoLoaded = true
         }
     }
 
     /// Mirror the current RevenueCat entitlement to the backend so server-side
     /// gates (pair limit, daily cap, content reject) know the user's tier.
     /// Safe to call without an auth token — the request will just fail silently.
+    ///
+    /// IMPORTANT: never call this with `is_active: false` for a user that
+    /// previously purchased — the backend protects against accidental
+    /// downgrades, but we shouldn't rely on that as our only safety net.
+    /// We only sync when we know with confidence that RevenueCat has
+    /// finished its initial customerInfo load.
     func syncEntitlementWithBackend() async {
         guard APIService.shared.token != nil else { return }
+        // Don't push optimistic-default state. If we send `is_active: false`
+        // before RevenueCat has loaded the customer's actual entitlements,
+        // we risk downgrading a real lifetime customer. The backend now
+        // rejects downgrades server-side, but we still avoid the noise here.
+        guard customerInfoLoaded else { return }
         struct Body: Encodable {
             let is_active: Bool
             let expiration_date: String?
@@ -148,11 +166,25 @@ class StoreKitManager {
             expiration_date: expirationISO,
             product_id: productIdentifier
         )
-        // We get the refreshed User back so AuthManager can pick up the
-        // new is_premium flag without a separate /auth/me round-trip.
-        let _: User? = try? await APIService.shared.post(
+        // Sync returns the refreshed user. Push it to AuthManager via a
+        // notification so any view bound to `auth.user` sees the new
+        // is_premium flag immediately — no separate /auth/me needed.
+        if let updated: User = try? await APIService.shared.post(
             "/users/me/sync-entitlement",
             body: body
-        )
+        ) {
+            await MainActor.run {
+                NotificationCenter.default.post(
+                    name: .userPremiumDidUpdate,
+                    object: updated
+                )
+            }
+        }
     }
+}
+
+extension Notification.Name {
+    /// Posted with a `User` payload after the backend confirms an entitlement
+    /// sync. AuthManager listens and updates its in-memory user.
+    static let userPremiumDidUpdate = Notification.Name("userPremiumDidUpdate")
 }
