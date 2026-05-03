@@ -874,10 +874,17 @@ async def create_card(req: CreateCardRequest, user: dict = Depends(get_current_u
 
     receiver_id = pair["user_2"] if pair["user_1"] == user["id"] else pair["user_1"]
 
-    # Replace semantics: we only keep ONE active card per pair at a time.
-    # Physically delete any previous card(s) for this pair so stale entries
-    # can never resurface in a widget fallback or a race-sorted query.
-    await db.cards.delete_many({"pair_id": req.pair_id})
+    # Replace semantics: keep ONE active card PER DIRECTION (sender) per pair.
+    # A pair has two directions — A→B and B→A — and each user's widget shows
+    # cards their PARTNER sent them. Deleting by pair_id alone (the previous
+    # behavior) wiped the partner's incoming card whenever the user replied,
+    # which is why both widgets ended up cleared whenever either side sent.
+    # We now scope the replace to the sender so the partner's outgoing card
+    # remains intact.
+    await db.cards.delete_many({
+        "pair_id": req.pair_id,
+        "sender_id": user["id"],
+    })
 
     card_doc = {
         "pair_id": req.pair_id,
@@ -1028,7 +1035,24 @@ async def delete_account(user: dict = Depends(get_current_user)):
 
 @api_router.post("/devices/register")
 async def register_device(req: DeviceRegisterRequest, user: dict = Depends(get_current_user)):
-    """Register or update a device token for push notifications."""
+    """Register or update a device token for push notifications.
+
+    A given device_token can only belong to ONE user at a time. When user A
+    logs out and user B logs in on the same device, APNs gives the same
+    device_token back to the OS, but our DB previously kept the (A, token)
+    row alongside the new (B, token) row. The next time we sent a push to
+    user A, APNs delivered it to the device — now logged in as B — and B's
+    widget refreshed using A's pair_ids. That cross-account contamination
+    is the source of "another account's widget shows up on my phone".
+
+    To fix it: any other (user_id, this device_token) record is removed
+    before we upsert the current user's row.
+    """
+    # Strip ownership of this token from any other user.
+    await db.devices.delete_many({
+        "device_token": req.device_token,
+        "user_id": {"$ne": user["id"]},
+    })
     await db.devices.update_one(
         {"user_id": user["id"], "device_token": req.device_token},
         {"$set": {
@@ -1040,6 +1064,26 @@ async def register_device(req: DeviceRegisterRequest, user: dict = Depends(get_c
         upsert=True,
     )
     return {"message": "Device registered"}
+
+
+class DeviceUnregisterRequest(BaseModel):
+    device_token: str
+
+
+@api_router.post("/devices/unregister")
+async def unregister_device(req: DeviceUnregisterRequest, user: dict = Depends(get_current_user)):
+    """Remove this device's push registration for the current user.
+
+    Called from the iOS client during explicit logout so the user's account
+    stops receiving pushes on a phone they no longer own / are no longer
+    signed into. The /register call already strips other-user records as a
+    safety net, but cleaning up on logout is the polite path.
+    """
+    await db.devices.delete_many({
+        "user_id": user["id"],
+        "device_token": req.device_token,
+    })
+    return {"message": "Device unregistered"}
 
 
 async def send_push_notification(user_id: str, payload: dict):

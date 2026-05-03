@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import WidgetKit
 
 @Observable
 class AuthManager {
@@ -140,8 +141,49 @@ class AuthManager {
     }
 
     func logout() {
+        // Tell the backend to drop this device's push registration BEFORE we
+        // clear the auth token — otherwise pushes for the now-logged-out
+        // account would keep landing on the device after the next user signs
+        // in, refreshing their widget with the previous account's data.
+        if let token = UserDefaults.standard.string(forKey: "pending_device_token"),
+           APIService.shared.token != nil {
+            Task {
+                struct Body: Encodable { let device_token: String }
+                struct EmptyResponse: Decodable {}
+                _ = try? await APIService.shared.post("/devices/unregister",
+                                                     body: Body(device_token: token)) as EmptyResponse
+            }
+        }
+
         APIService.shared.token = nil
         user = nil
+        // Wipe widget-visible state for this account: cached friend list and
+        // every per-pair card. Without this, the next account that signs in
+        // on the same device sees the previous user's cards on the widget
+        // until the next backend round-trip lands.
+        WidgetUserScopeReset.clearAll()
         Analytics.reset()
+    }
+}
+
+/// Helper that wipes everything the widget extension reads from the App Group.
+/// Used on logout so account A's data never bleeds into account B on the same
+/// device. We can't reach into UserDefaults directly without exposing the
+/// App Group suite name in two places, so this wraps it.
+@MainActor
+enum WidgetUserScopeReset {
+    static func clearAll() {
+        let appGroupId = "group.com.nubittech.surprisewidget"
+        guard let defaults = UserDefaults(suiteName: appGroupId) else { return }
+        // Cards: every key beginning with "card_<pairId>" or "music_playing_".
+        for key in defaults.dictionaryRepresentation().keys {
+            if key.hasPrefix("card_") || key.hasPrefix("music_playing_") {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        // Friends list shown to the widget configuration sheet.
+        defaults.removeObject(forKey: "friends_list")
+        // Force the widget to re-render the (now-empty) state immediately.
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
